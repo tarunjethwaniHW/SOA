@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:definitions name="StatementProcessingService"
+                  targetNamespace="http://unified.mortgage.com/statement/processing"
+                  xmlns:tns="http://unified.mortgage.com/statement/processing"
+                  xmlns:types="http://unified.mortgage.com/statement/types"
+                  xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+                  xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+                  xmlns:plt="http://schemas.xmlsoap.org/ws/2003/05/partner-link/">
+
+    <!-- ================================================================== -->
+    <!-- WSDL for SOAP API Entry Point                                      -->
+    <!-- This is the client-facing service that exposes file processing     -->
+    <!-- Chain: Java Client -> WSDL -> SOA_SERVICE -> SOA_COMPONENT -> BPEL -->
+    <!-- ================================================================== -->
+
+    <wsdl:types>
+        <xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+            <xsd:import namespace="http://unified.mortgage.com/statement/types" schemaLocation="xsd/StatementFileTypes.xsd"/>
+        </xsd:schema>
+    </wsdl:types>
+
+    <wsdl:message name="ProcessStatementFileRequestMessage">
+        <wsdl:part name="payload" element="types:ProcessStatementFileRequest"/>
+    </wsdl:message>
+
+    <wsdl:message name="ProcessStatementFileResponseMessage">
+        <wsdl:part name="payload" element="types:ProcessStatementFileResponse"/>
+    </wsdl:message>
+
+    <wsdl:message name="StatementProcessingFaultMessage">
+        <wsdl:part name="fault" element="types:StatementProcessingFault"/>
+    </wsdl:message>
+
+    <wsdl:portType name="StatementProcessingPortType">
+        <wsdl:operation name="processStatementFile">
+            <wsdl:input message="tns:ProcessStatementFileRequestMessage"/>
+            <wsdl:output message="tns:ProcessStatementFileResponseMessage"/>
+            <wsdl:fault name="processingFault" message="tns:StatementProcessingFaultMessage"/>
+        </wsdl:operation>
+    </wsdl:portType>
+
+    <wsdl:binding name="StatementProcessingBinding" type="tns:StatementProcessingPortType">
+        <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+        <wsdl:operation name="processStatementFile">
+            <soap:operation soapAction="processStatementFile"/>
+            <wsdl:input>
+                <soap:body use="literal"/>
+            </wsdl:input>
+            <wsdl:output>
+                <soap:body use="literal"/>
+            </wsdl:output>
+            <wsdl:fault name="processingFault">
+                <soap:fault name="processingFault" use="literal"/>
+            </wsdl:fault>
+        </wsdl:operation>
+    </wsdl:binding>
+
+    <wsdl:service name="statementprocessing_client_ep">
+        <wsdl:port name="StatementProcessingPort" binding="tns:StatementProcessingBinding">
+            <soap:address location="http://localhost:13080/soap/StatementProcessingService"/>
+        </wsdl:port>
+    </wsdl:service>
+
+    <plt:partnerLinkType name="StatementProcessingPLT">
+        <plt:role name="StatementProcessingProvider" portType="tns:StatementProcessingPortType"/>
+    </plt:partnerLinkType>
+
+</wsdl:definitions>

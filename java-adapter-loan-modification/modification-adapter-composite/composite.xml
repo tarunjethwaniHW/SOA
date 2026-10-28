@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<composite name="ModificationAdapterComposite"
+           revision="1.0"
+           label="Java Adapter Test - BPEL Java Embedding Patterns"
+           mode="active"
+           state="on"
+           xmlns="http://xmlns.oracle.com/sca/1.0"
+           xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:ui="http://xmlns.oracle.com/soa/designer/">
+
+    <!-- ================================================================== -->
+    <!-- Java Adapter Test Composite                                        -->
+    <!-- Tests BPEL Java Embedding patterns for parser validation           -->
+    <!--                                                                    -->
+    <!-- Single BPEL orchestration with 4 <bpelx:exec> Java embeddings:     -->
+    <!--   1. PostModDtiCalculator         - Calculate DTI/LTV ratios              -->
+    <!--   2. HardshipOcrProcessor          - Document OCR processing               -->
+    <!--   3. ModificationDecisionEngine        - Underwriting modificationDecision                 -->
+    <!--   4. ModifiedTermsAmortizer - Pricing/payment calculations         -->
+    <!-- ================================================================== -->
+
+    <!-- Import WSDL -->
+    <import namespace="http://xmlns.oracle.com/LoanModification/ModificationAdapterProcess"
+            location="ModificationAdapterProcess.wsdl" importType="wsdl"/>
+
+    <!-- ================================================================== -->
+    <!-- Service Entry Point                                                -->
+    <!-- ================================================================== -->
+
+    <service name="modificationadapter_client_ep" ui:wsdlLocation="ModificationAdapterProcess.wsdl">
+        <interface.wsdl interface="http://xmlns.oracle.com/LoanModification/ModificationAdapterProcess#wsdl.interface(ModificationAdapterProcess)"/>
+        <binding.ws port="http://xmlns.oracle.com/LoanModification/ModificationAdapterProcess#wsdl.endpoint(modificationadapter_client_ep/ModificationAdapterProcess_pt)">
+            <property name="weblogic.wsee.wsat.transaction.flowOption" type="xs:string" many="false">NEVER</property>
+        </binding.ws>
+    </service>
+
+    <!-- ================================================================== -->
+    <!-- Modification Process Orchestration Component                               -->
+    <!-- Single BPEL with multiple Java adapter embeddings                  -->
+    <!-- ================================================================== -->
+
+    <component name="ModificationOrchestration" version="2.0">
+        <implementation.bpel src="ModificationOrchestration.bpel"/>
+        <componentType>
+            <service name="ModificationOrchestrationService" ui:wsdlLocation="ModificationAdapterProcess.wsdl">
+                <interface.wsdl interface="http://xmlns.oracle.com/LoanModification/ModificationAdapterProcess#wsdl.interface(ModificationAdapterProcess)"/>
+            </service>
+        </componentType>
+        <property name="bpel.config.transaction" type="xs:string" many="false">required</property>
+    </component>
+
+    <!-- ================================================================== -->
+    <!-- Wiring: Service Entry Point → BPEL Component                       -->
+    <!-- ================================================================== -->
+
+    <wire>
+        <source.uri>modificationadapter_client_ep</source.uri>
+        <target.uri>ModificationOrchestration/ModificationOrchestrationService</target.uri>
+    </wire>
+
+    <!-- Wiring: BPEL Component → EJB References -->
+    <wire>
+        <source.uri>ModificationOrchestration/HardshipCreditReviewPartner</source.uri>
+        <target.uri>HardshipCreditReviewEJB</target.uri>
+    </wire>
+
+    <wire>
+        <source.uri>ModificationOrchestration/ModificationCompliancePartner</source.uri>
+        <target.uri>ModificationComplianceEJB</target.uri>
+    </wire>
+
+    <!-- Wiring: BPEL Component → Spring Components (SCA internal) -->
+    <wire>
+        <source.uri>ModificationOrchestration/RedefaultRiskScorerPartner</source.uri>
+        <target.uri>RedefaultRiskScorerComponent/RedefaultRiskScorerService</target.uri>
+    </wire>
+
+    <wire>
+        <source.uri>ModificationOrchestration/HardshipDocClassifierPartner</source.uri>
+        <target.uri>HardshipDocClassifierComponent/HardshipDocClassifierService</target.uri>
+    </wire>
+
+    <!-- ================================================================== -->
+    <!-- SPRING COMPONENTS                                                  -->
+    <!-- Pattern: implementation.spring → Spring XML → Java Bean            -->
+    <!-- ================================================================== -->
+
+    <component name="RedefaultRiskScorerComponent">
+        <implementation.spring src="spring/redefault-risk-scorer-context.xml"/>
+        <service name="RedefaultRiskScorerService">
+            <interface.java interface="com.unified.mortgage.modification.spring.IRedefaultRiskScorer"/>
+        </service>
+    </component>
+
+    <component name="HardshipDocClassifierComponent">
+        <implementation.spring src="spring/hardship-doc-classifier-context.xml"/>
+        <service name="HardshipDocClassifierService">
+            <interface.java interface="com.unified.mortgage.modification.spring.IHardshipDocClassifier"/>
+        </service>
+    </component>
+
+    <!-- ================================================================== -->
+    <!-- EJB REFERENCES                                                     -->
+    <!-- Pattern: reference + binding.ejb → Remote EJB on WebLogic          -->
+    <!-- ================================================================== -->
+
+    <reference name="HardshipCreditReviewEJB">
+        <interface.java interface="com.unified.mortgage.modification.ejb.IHardshipCreditReviewRemote"/>
+        <binding.ejb uri="HardshipCreditReviewEJB#com.unified.mortgage.modification.ejb.IHardshipCreditReviewRemote"
+                     jndi-name="ejb/HardshipCreditReview">
+            <property name="java.naming.factory.initial" type="xs:string" many="false">weblogic.jndi.WLInitialContextFactory</property>
+            <property name="java.naming.provider.url" type="xs:string" many="false">t3://localhost:12001</property>
+        </binding.ejb>
+    </reference>
+
+    <reference name="ModificationComplianceEJB">
+        <interface.java interface="com.unified.mortgage.modification.ejb.IModificationComplianceRemote"/>
+        <binding.ejb uri="ModificationComplianceEJB#com.unified.mortgage.modification.ejb.IModificationComplianceRemote"
+                     jndi-name="ejb/ModificationCompliance">
+            <property name="java.naming.factory.initial" type="xs:string" many="false">weblogic.jndi.WLInitialContextFactory</property>
+            <property name="java.naming.provider.url" type="xs:string" many="false">t3://compliance-server:12001</property>
+        </binding.ejb>
+    </reference>
+
+</composite>

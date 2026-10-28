@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<composite name="StatementProcessingComposite"
+           revision="1.0"
+           label="File Processing with Dual Entry Points"
+           mode="active"
+           state="on"
+           xmlns="http://xmlns.oracle.com/sca/1.0"
+           xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:wsp="http://schemas.xmlsoap.org/ws/2004/09/policy"
+           xmlns:ui="http://xmlns.oracle.com/soa/designer/">
+
+    <!-- ================================================================== -->
+    <!-- TEST PROJECT: File Adapter Patterns                                -->
+    <!-- Demonstrates TWO entry paths to the same BPEL process:             -->
+    <!-- 1. SOAP API: Java Client -> WSDL -> Service -> Component -> BPEL   -->
+    <!-- 2. File Adapter: JCA -> Service -> Component -> BPEL               -->
+    <!-- Both paths converge at the BPEL which calls File Adapter Outbound  -->
+    <!-- ================================================================== -->
+
+    <!-- Import WSDLs -->
+    <import namespace="http://unified.mortgage.com/statement/processing"
+            location="StatementProcessingService.wsdl"
+            importType="wsdl"/>
+    <import namespace="http://unified.mortgage.com/statement/adapter/file"
+            location="adapters/StatementFile_Inbound.wsdl"
+            importType="wsdl"/>
+    <import namespace="http://unified.mortgage.com/statement/adapter/file"
+            location="adapters/StatementFile_Outbound.wsdl"
+            importType="wsdl"/>
+
+    <!-- ================================================================== -->
+    <!-- ENTRY POINT 1: SOAP API Service                                    -->
+    <!-- Chain: Java Client -> WSDL -> SOA_SERVICE -> SOA_COMPONENT -> BPEL -->
+    <!-- ================================================================== -->
+
+    <service name="StatementProcessingService" ui:wsdlLocation="StatementProcessingService.wsdl">
+        <interface.wsdl interface="http://unified.mortgage.com/statement/processing#wsdl.interface(StatementProcessingPortType)"/>
+        <binding.ws port="http://unified.mortgage.com/statement/processing#wsdl.endpoint(statementprocessing_client_ep/StatementProcessingPort)"/>
+    </service>
+
+    <!-- ================================================================== -->
+    <!-- ENTRY POINT 2: File Adapter Inbound Service                        -->
+    <!-- Chain: JCA_ADAPTER_INBOUND -> SOA_SERVICE -> SOA_COMPONENT -> BPEL -->
+    <!-- Polls /data/statements/incoming directory for new files                       -->
+    <!-- ================================================================== -->
+
+    <service name="StatementFileInbound" ui:wsdlLocation="adapters/StatementFile_Inbound.wsdl">
+        <interface.wsdl interface="http://unified.mortgage.com/statement/adapter/file#wsdl.interface(Read_ptt)"/>
+        <binding.jca config="adapters/StatementFile_Inbound.jca"/>
+    </service>
+
+    <!-- ================================================================== -->
+    <!-- BPEL Component                                                     -->
+    <!-- Processes files from both SOAP API and File Adapter entry points   -->
+    <!-- ================================================================== -->
+
+    <component name="StatementProcessingProcess" version="2.0">
+        <implementation.bpel src="StatementProcessingProcess.bpel"/>
+        <componentType>
+            <!-- Service Interfaces (entry points) -->
+            <service name="StatementProcessingService" ui:wsdlLocation="StatementProcessingService.wsdl">
+                <interface.wsdl interface="http://unified.mortgage.com/statement/processing#wsdl.interface(StatementProcessingPortType)"/>
+            </service>
+            <service name="StatementFileInbound" ui:wsdlLocation="adapters/StatementFile_Inbound.wsdl">
+                <interface.wsdl interface="http://unified.mortgage.com/statement/adapter/file#wsdl.interface(Read_ptt)"/>
+            </service>
+
+            <!-- References (outbound calls) -->
+            <reference name="StatementFileOutbound" ui:wsdlLocation="adapters/StatementFile_Outbound.wsdl">
+                <interface.wsdl interface="http://unified.mortgage.com/statement/adapter/file#wsdl.interface(Write_ptt)"/>
+            </reference>
+        </componentType>
+    </component>
+
+    <!-- ================================================================== -->
+    <!-- OUTBOUND: File Adapter Reference                                   -->
+    <!-- Chain: BPEL -> SOA_REFERENCE -> JCA_ADAPTER_OUTBOUND -> File       -->
+    <!-- Writes processed files to /data/statements/outgoing directory                 -->
+    <!-- ================================================================== -->
+
+    <reference name="StatementFileOutbound" ui:wsdlLocation="adapters/StatementFile_Outbound.wsdl">
+        <interface.wsdl interface="http://unified.mortgage.com/statement/adapter/file#wsdl.interface(Write_ptt)"/>
+        <binding.jca config="adapters/StatementFile_Outbound.jca"/>
+    </reference>
+
+    <!-- ================================================================== -->
+    <!-- Wiring                                                             -->
+    <!-- ================================================================== -->
+
+    <!-- SOAP API -> BPEL Component -->
+    <wire>
+        <source.uri>StatementProcessingService</source.uri>
+        <target.uri>StatementProcessingProcess/StatementProcessingService</target.uri>
+    </wire>
+
+    <!-- File Adapter Inbound -> BPEL Component -->
+    <wire>
+        <source.uri>StatementFileInbound</source.uri>
+        <target.uri>StatementProcessingProcess/StatementFileInbound</target.uri>
+    </wire>
+
+    <!-- BPEL Component -> File Adapter Outbound -->
+    <wire>
+        <source.uri>StatementProcessingProcess/StatementFileOutbound</source.uri>
+        <target.uri>StatementFileOutbound</target.uri>
+    </wire>
+
+</composite>

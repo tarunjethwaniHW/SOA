@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+            targetNamespace="http://xmlns.oracle.com/LoanModification/types"
+            xmlns:tns="http://xmlns.oracle.com/LoanModification/types"
+            elementFormDefault="qualified">
+
+    <!-- Request/Response Elements -->
+    <xsd:element name="ModificationProcessRequest" type="tns:ModificationProcessRequestType"/>
+    <xsd:element name="ModificationProcessResponse" type="tns:ModificationProcessResponseType"/>
+    <xsd:element name="ModificationFaultDetail" type="tns:ModificationFaultDetailType"/>
+
+    <!-- Request Type -->
+    <xsd:complexType name="ModificationProcessRequestType">
+        <xsd:sequence>
+            <xsd:element name="hardshipBorrowerName" type="xsd:string"/>
+            <xsd:element name="borrowerTaxId" type="xsd:string"/>
+            <xsd:element name="unpaidPrincipalBalance" type="xsd:double"/>
+            <xsd:element name="hardshipMonthlyIncome" type="xsd:double"/>
+            <xsd:element name="monthlyObligations" type="xsd:double"/>
+            <xsd:element name="propertyValue" type="xsd:double"/>
+            <xsd:element name="documentData" type="xsd:base64Binary" minOccurs="0"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <!-- Response Type -->
+    <xsd:complexType name="ModificationProcessResponseType">
+        <xsd:sequence>
+            <xsd:element name="modificationId" type="xsd:string"/>
+            <xsd:element name="status" type="xsd:string"/>
+            <xsd:element name="modificationDecision" type="xsd:string"/>
+            <xsd:element name="modificationNotes" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="postModDtiRatio" type="xsd:double" minOccurs="0"/>
+            <xsd:element name="markToMarketLtvRatio" type="xsd:double" minOccurs="0"/>
+            <xsd:element name="redefaultRiskScore" type="xsd:int" minOccurs="0"/>
+            <xsd:element name="modifiedMonthlyPayment" type="xsd:double" minOccurs="0"/>
+            <xsd:element name="documentClassification" type="xsd:string" minOccurs="0"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <!-- Fault Type -->
+    <xsd:complexType name="ModificationFaultDetailType">
+        <xsd:sequence>
+            <xsd:element name="errorCode" type="xsd:string"/>
+            <xsd:element name="errorMessage" type="xsd:string"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+</xsd:schema>

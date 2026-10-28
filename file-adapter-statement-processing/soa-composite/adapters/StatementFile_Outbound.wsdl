@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:definitions name="StatementFileOutbound"
+                  targetNamespace="http://unified.mortgage.com/statement/adapter/file"
+                  xmlns:tns="http://unified.mortgage.com/statement/adapter/file"
+                  xmlns:types="http://unified.mortgage.com/statement/types"
+                  xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+                  xmlns:plt="http://schemas.xmlsoap.org/ws/2003/05/partner-link/">
+
+    <wsdl:types>
+        <xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+            <xsd:import namespace="http://unified.mortgage.com/statement/types" schemaLocation="../xsd/StatementFileTypes.xsd"/>
+        </xsd:schema>
+    </wsdl:types>
+
+    <wsdl:message name="StatementFileWriteMessage">
+        <wsdl:part name="payload" element="types:StatementFileContent"/>
+    </wsdl:message>
+
+    <wsdl:portType name="Write_ptt">
+        <wsdl:operation name="Write">
+            <wsdl:input message="tns:StatementFileWriteMessage"/>
+        </wsdl:operation>
+    </wsdl:portType>
+
+    <plt:partnerLinkType name="StatementFileAdapterPLT">
+        <plt:role name="FileWriter" portType="tns:Write_ptt"/>
+    </plt:partnerLinkType>
+
+</wsdl:definitions>

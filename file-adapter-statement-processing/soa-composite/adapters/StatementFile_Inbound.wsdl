@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:definitions name="StatementFileInbound"
+                  targetNamespace="http://unified.mortgage.com/statement/adapter/file"
+                  xmlns:tns="http://unified.mortgage.com/statement/adapter/file"
+                  xmlns:types="http://unified.mortgage.com/statement/types"
+                  xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+                  xmlns:plt="http://schemas.xmlsoap.org/ws/2003/05/partner-link/">
+
+    <wsdl:types>
+        <xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+            <xsd:import namespace="http://unified.mortgage.com/statement/types" schemaLocation="../xsd/StatementFileTypes.xsd"/>
+        </xsd:schema>
+    </wsdl:types>
+
+    <wsdl:message name="StatementFileReadMessage">
+        <wsdl:part name="payload" element="types:StatementFileContent"/>
+    </wsdl:message>
+
+    <wsdl:portType name="Read_ptt">
+        <wsdl:operation name="Read">
+            <wsdl:input message="tns:StatementFileReadMessage"/>
+        </wsdl:operation>
+    </wsdl:portType>
+
+    <plt:partnerLinkType name="StatementFileAdapterPLT">
+        <plt:role name="FileReader" portType="tns:Read_ptt"/>
+    </plt:partnerLinkType>
+
+</wsdl:definitions>

@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<process name="StatementProcessingProcess"
+         targetNamespace="http://unified.mortgage.com/statement/processing/bpel"
+         xmlns="http://docs.oasis-open.org/wsbpel/2.0/process/executable"
+         xmlns:bpws="http://docs.oasis-open.org/wsbpel/2.0/process/executable"
+         xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+         xmlns:bpelx="http://schemas.oracle.com/bpel/extension"
+         xmlns:ora="http://schemas.oracle.com/xpath/extension"
+         xmlns:tns="http://unified.mortgage.com/statement/processing/bpel"
+         xmlns:fileproc="http://unified.mortgage.com/statement/processing"
+         xmlns:types="http://unified.mortgage.com/statement/types"
+         xmlns:file="http://unified.mortgage.com/statement/adapter/file">
+
+    <!-- ================================================================== -->
+    <!-- BPEL Process: StatementProcessingProcess                                -->
+    <!-- Receives files from two entry points:                              -->
+    <!-- 1. SOAP API (StatementProcessingClient partner link)                    -->
+    <!-- 2. File Adapter Inbound (StatementFileInbound partner link)          -->
+    <!-- Writes processed files via File Adapter Outbound                   -->
+    <!-- ================================================================== -->
+
+    <!-- ================================================================== -->
+    <!-- Partner Links                                                      -->
+    <!-- ================================================================== -->
+
+    <partnerLinks>
+        <!-- ENTRY POINT 1: SOAP API Client -->
+        <partnerLink name="StatementProcessingClient"
+                     partnerLinkType="fileproc:StatementProcessingPLT"
+                     myRole="StatementProcessingProvider"/>
+
+        <!-- ENTRY POINT 2: File Adapter Inbound (polls directory) -->
+        <partnerLink name="StatementFileInbound"
+                     partnerLinkType="file:StatementFileAdapterPLT"
+                     myRole="FileReader"/>
+
+        <!-- OUTBOUND: File Adapter Outbound (writes to directory) -->
+        <partnerLink name="StatementFileOutbound"
+                     partnerLinkType="file:StatementFileAdapterPLT"
+                     partnerRole="FileWriter"/>
+    </partnerLinks>
+
+    <!-- ================================================================== -->
+    <!-- Variables                                                          -->
+    <!-- ================================================================== -->
+
+    <variables>
+        <!-- SOAP API request/response -->
+        <variable name="soapInputVariable" messageType="fileproc:ProcessStatementFileRequestMessage"/>
+        <variable name="soapOutputVariable" messageType="fileproc:ProcessStatementFileResponseMessage"/>
+
+        <!-- File Adapter variables -->
+        <variable name="fileInputVariable" messageType="file:StatementFileReadMessage"/>
+        <variable name="fileOutputVariable" messageType="file:StatementFileWriteMessage"/>
+
+        <!-- Processing variables -->
+        <variable name="processedContent" type="xsd:string"/>
+        <variable name="statementRequestId" type="xsd:string"/>
+        <variable name="statementFilePath" type="xsd:string"/>
+    </variables>
+
+    <!-- ================================================================== -->
+    <!-- Main Flow - Pick between SOAP API and File Adapter entry           -->
+    <!-- ================================================================== -->
+
+    <pick name="WaitForInput" createInstance="yes">
+
+        <!-- Branch 1: SOAP API Entry Point -->
+        <onMessage partnerLink="StatementProcessingClient"
+                   operation="processStatementFile"
+                   variable="soapInputVariable">
+
+            <sequence name="ProcessFromSOAP">
+
+                <!-- Generate request ID -->
+                <assign name="AssignRequestId">
+                    <copy>
+                        <from>$soapInputVariable.payload/types:statementRequestId</from>
+                        <to variable="statementRequestId"/>
+                    </copy>
+                </assign>
+
+                <!-- Log entry point -->
+                <bpelx:exec name="LogSOAPEntry" language="java">
+                    <![CDATA[
+                        String statementRequestId = (String)getVariableData("statementRequestId");
+                        addAuditTrailEntry("[SOAP API Entry] Processing request: " + statementRequestId);
+                    ]]>
+                </bpelx:exec>
+
+                <!-- Transform/Process the content -->
+                <assign name="TransformContent">
+                    <copy>
+                        <from>concat('PROCESSED_FROM_SOAP:', $soapInputVariable.payload/types:fileName)</from>
+                        <to variable="processedContent"/>
+                    </copy>
+                </assign>
+
+                <!-- Prepare output for File Adapter -->
+                <assign name="PrepareFileOutput">
+                    <copy>
+                        <from>concat('/data/statements/outgoing/soap_', $statementRequestId, '.xml')</from>
+                        <to>$fileOutputVariable.payload/types:filePath</to>
+                    </copy>
+                    <copy>
+                        <from>$soapInputVariable.payload/types:fileName</from>
+                        <to>$fileOutputVariable.payload/types:fileName</to>
+                    </copy>
+                    <copy>
+                        <from variable="processedContent"/>
+                        <to>$fileOutputVariable.payload/types:statementText</to>
+                    </copy>
+                </assign>
+
+                <!-- Call File Adapter Outbound to write the file -->
+                <invoke name="WriteProcessedFile"
+                        partnerLink="StatementFileOutbound"
+                        operation="Write"
+                        inputVariable="fileOutputVariable"/>
+
+                <!-- Prepare SOAP response -->
+                <assign name="PrepareResponse">
+                    <copy>
+                        <from variable="statementRequestId"/>
+                        <to>$soapOutputVariable.payload/types:statementRequestId</to>
+                    </copy>
+                    <copy>
+                        <from>'SUCCESS'</from>
+                        <to>$soapOutputVariable.payload/types:status</to>
+                    </copy>
+                    <copy>
+                        <from>$fileOutputVariable.payload/types:filePath</from>
+                        <to>$soapOutputVariable.payload/types:statementFilePath</to>
+                    </copy>
+                    <copy>
+                        <from>'File processed successfully via SOAP API entry point'</from>
+                        <to>$soapOutputVariable.payload/types:statementDetails</to>
+                    </copy>
+                    <copy>
+                        <from>ora:getCurrentDateTime()</from>
+                        <to>$soapOutputVariable.payload/types:timestamp</to>
+                    </copy>
+                </assign>
+
+                <!-- Reply to SOAP client -->
+                <reply name="ReplyToSOAPClient"
+                       partnerLink="StatementProcessingClient"
+                       operation="processStatementFile"
+                       variable="soapOutputVariable"/>
+
+            </sequence>
+        </onMessage>
+
+        <!-- Branch 2: File Adapter Inbound Entry Point -->
+        <onMessage partnerLink="StatementFileInbound"
+                   operation="Read"
+                   variable="fileInputVariable">
+
+            <sequence name="ProcessFromStatementFileAdapter">
+
+                <!-- Generate request ID for file-based entry -->
+                <assign name="GenerateFileRequestId">
+                    <copy>
+                        <from>ora:generateGUID()</from>
+                        <to variable="statementRequestId"/>
+                    </copy>
+                </assign>
+
+                <!-- Log entry point -->
+                <bpelx:exec name="LogStatementFileAdapterEntry" language="java">
+                    <![CDATA[
+                        String statementRequestId = (String)getVariableData("statementRequestId");
+                        String fileName = (String)getVariableData("fileInputVariable", "payload", "/types:StatementFileContent/types:fileName");
+                        addAuditTrailEntry("[File Adapter Entry] Processing file: " + fileName + " (Request: " + statementRequestId + ")");
+                    ]]>
+                </bpelx:exec>
+
+                <!-- Transform/Process the content -->
+                <assign name="TransformFileContent">
+                    <copy>
+                        <from>concat('PROCESSED_FROM_FILE_ADAPTER:', $fileInputVariable.payload/types:fileName)</from>
+                        <to variable="processedContent"/>
+                    </copy>
+                </assign>
+
+                <!-- Prepare output for File Adapter -->
+                <assign name="PrepareStatementFileAdapterOutput">
+                    <copy>
+                        <from>concat('/data/statements/outgoing/file_', $statementRequestId, '.xml')</from>
+                        <to>$fileOutputVariable.payload/types:filePath</to>
+                    </copy>
+                    <copy>
+                        <from>concat('processed_', $fileInputVariable.payload/types:fileName)</from>
+                        <to>$fileOutputVariable.payload/types:fileName</to>
+                    </copy>
+                    <copy>
+                        <from variable="processedContent"/>
+                        <to>$fileOutputVariable.payload/types:statementText</to>
+                    </copy>
+                </assign>
+
+                <!-- Call File Adapter Outbound to write the file -->
+                <invoke name="WriteProcessedFileFromAdapter"
+                        partnerLink="StatementFileOutbound"
+                        operation="Write"
+                        inputVariable="fileOutputVariable"/>
+
+                <!-- Log completion (no reply needed for file-triggered process) -->
+                <bpelx:exec name="LogCompletion" language="java">
+                    <![CDATA[
+                        String outputPath = (String)getVariableData("fileOutputVariable", "payload", "/types:StatementFileContent/types:filePath");
+                        addAuditTrailEntry("[File Adapter Entry] Processing complete. Output: " + outputPath);
+                    ]]>
+                </bpelx:exec>
+
+            </sequence>
+        </onMessage>
+
+    </pick>
+
+</process>

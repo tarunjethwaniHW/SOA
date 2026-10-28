@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+            targetNamespace="http://unified.mortgage.com/statement/types"
+            xmlns:tns="http://unified.mortgage.com/statement/types"
+            elementFormDefault="qualified">
+
+    <!-- File content wrapper for File Adapter -->
+    <xsd:element name="StatementFileContent" type="tns:FileContentType"/>
+
+    <xsd:complexType name="FileContentType">
+        <xsd:sequence>
+            <xsd:element name="fileName" type="xsd:string"/>
+            <xsd:element name="filePath" type="xsd:string"/>
+            <xsd:element name="fileSize" type="xsd:long" minOccurs="0"/>
+            <xsd:element name="mimeType" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="content" type="xsd:base64Binary" minOccurs="0"/>
+            <xsd:element name="statementText" type="xsd:string" minOccurs="0"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <!-- Request for SOAP API entry point -->
+    <xsd:element name="ProcessStatementFileRequest" type="tns:ProcessStatementFileRequestType"/>
+
+    <xsd:complexType name="ProcessStatementFileRequestType">
+        <xsd:sequence>
+            <xsd:element name="statementRequestId" type="xsd:string"/>
+            <xsd:element name="fileName" type="xsd:string"/>
+            <xsd:element name="servicingFileContent" type="xsd:base64Binary" minOccurs="0"/>
+            <xsd:element name="statementType" type="tns:ProcessingTypeEnum"/>
+            <xsd:element name="metadata" type="tns:MetadataType" minOccurs="0"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <!-- Response from BPEL process -->
+    <xsd:element name="ProcessStatementFileResponse" type="tns:ProcessStatementFileResponseType"/>
+
+    <xsd:complexType name="ProcessStatementFileResponseType">
+        <xsd:sequence>
+            <xsd:element name="statementRequestId" type="xsd:string"/>
+            <xsd:element name="status" type="tns:StatusEnum"/>
+            <xsd:element name="statementFilePath" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="statementDetails" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="timestamp" type="xsd:dateTime"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <!-- Processing type enumeration -->
+    <xsd:simpleType name="ProcessingTypeEnum">
+        <xsd:restriction base="xsd:string">
+            <xsd:enumeration value="TRANSFORM"/>
+            <xsd:enumeration value="VALIDATE"/>
+            <xsd:enumeration value="ARCHIVE"/>
+            <xsd:enumeration value="FORWARD"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+
+    <!-- Status enumeration -->
+    <xsd:simpleType name="StatusEnum">
+        <xsd:restriction base="xsd:string">
+            <xsd:enumeration value="SUCCESS"/>
+            <xsd:enumeration value="FAILED"/>
+            <xsd:enumeration value="PENDING"/>
+            <xsd:enumeration value="PROCESSING"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+
+    <!-- Metadata for file processing -->
+    <xsd:complexType name="MetadataType">
+        <xsd:sequence>
+            <xsd:element name="servicingSystem" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="priority" type="xsd:int" minOccurs="0"/>
+            <xsd:element name="correlationId" type="xsd:string" minOccurs="0"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <!-- Fault for error scenarios -->
+    <xsd:element name="StatementProcessingFault" type="tns:StatementProcessingFaultType"/>
+
+    <xsd:complexType name="StatementProcessingFaultType">
+        <xsd:sequence>
+            <xsd:element name="errorCode" type="xsd:string"/>
+            <xsd:element name="errorMessage" type="xsd:string"/>
+            <xsd:element name="errorDetails" type="xsd:string" minOccurs="0"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+</xsd:schema>

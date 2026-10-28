@@ -1,0 +1,372 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<process name="ModificationOrchestration"
+         targetNamespace="http://xmlns.oracle.com/LoanModification/ModificationOrchestration"
+         xmlns="http://docs.oasis-open.org/wsbpel/2.0/process/executable"
+         xmlns:bpws="http://docs.oasis-open.org/wsbpel/2.0/process/executable"
+         xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+         xmlns:bpelx="http://schemas.oracle.com/bpel/extension"
+         xmlns:ora="http://schemas.oracle.com/xpath/extension"
+         xmlns:tns="http://xmlns.oracle.com/LoanModification/ModificationOrchestration"
+         xmlns:types="http://xmlns.oracle.com/LoanModification/types">
+
+    <!-- ================================================================== -->
+    <!-- Modification Process Orchestration - Multiple Java Adapter Embeddings      -->
+    <!-- Single BPEL invoking 4 Java adapters via <bpelx:exec>              -->
+    <!--                                                                    -->
+    <!-- Java Adapters (from SCA-INF/lib/):                                 -->
+    <!--   1. ModificationDecisionEngine      - Modification underwriting modificationDecision              -->
+    <!--   2. PostModDtiCalculator       - DTI/LTV ratio calculations              -->
+    <!--   3. HardshipOcrProcessor        - Document OCR processing                 -->
+    <!--   4. ModifiedTermsAmortizer - Payment/pricing calculations         -->
+    <!-- ================================================================== -->
+
+    <partnerLinks>
+        <partnerLink name="ModificationProcessClient"
+                     partnerLinkType="tns:ModificationProcessPLT"
+                     myRole="ModificationProcessProvider"/>
+        <!-- EJB Partner Links - invoke remote EJBs via binding.ejb -->
+        <partnerLink name="HardshipCreditReviewPartner"
+                     partnerLinkType="tns:HardshipCreditReviewPLT"
+                     partnerRole="HardshipCreditReviewProvider"/>
+        <partnerLink name="ModificationCompliancePartner"
+                     partnerLinkType="tns:ModificationCompliancePLT"
+                     partnerRole="ModificationComplianceProvider"/>
+        <!-- Spring Component Partner Links - invoke Spring beans via SCA wiring -->
+        <partnerLink name="RedefaultRiskScorerPartner"
+                     partnerLinkType="tns:RedefaultRiskScorerPLT"
+                     partnerRole="RedefaultRiskScorerProvider"/>
+        <partnerLink name="HardshipDocClassifierPartner"
+                     partnerLinkType="tns:HardshipDocClassifierPLT"
+                     partnerRole="HardshipDocClassifierProvider"/>
+    </partnerLinks>
+
+    <variables>
+        <variable name="inputVariable" messageType="tns:ModificationProcessRequestMessage"/>
+        <variable name="outputVariable" messageType="tns:ModificationProcessResponseMessage"/>
+        <!-- Intermediate variables for Java adapter results -->
+        <variable name="postModDtiRatio" type="xsd:double"/>
+        <variable name="markToMarketLtvRatio" type="xsd:double"/>
+        <variable name="documentType" type="xsd:string"/>
+        <variable name="ocrConfidence" type="xsd:int"/>
+        <variable name="modificationStatus" type="xsd:string"/>
+        <variable name="redefaultRiskScore" type="xsd:int"/>
+        <variable name="modifiedInterestRate" type="xsd:double"/>
+        <variable name="modifiedMonthlyPayment" type="xsd:double"/>
+        <!-- EJB call variables -->
+        <variable name="hardshipCreditReviewRequest" messageType="tns:HardshipCreditReviewRequestMessage"/>
+        <variable name="hardshipCreditReviewResponse" messageType="tns:HardshipCreditReviewResponseMessage"/>
+        <variable name="modificationComplianceRequest" messageType="tns:ModificationComplianceRequestMessage"/>
+        <variable name="modificationComplianceResponse" messageType="tns:ModificationComplianceResponseMessage"/>
+        <variable name="hardshipCreditScore" type="xsd:int"/>
+        <variable name="complianceStatus" type="xsd:string"/>
+        <!-- Spring component call variables -->
+        <variable name="redefaultRiskScorerRequest" messageType="tns:RedefaultRiskScorerRequestMessage"/>
+        <variable name="redefaultRiskScorerResponse" messageType="tns:RedefaultRiskScorerResponseMessage"/>
+        <variable name="hardshipDocClassifierRequest" messageType="tns:HardshipDocClassifierRequestMessage"/>
+        <variable name="hardshipDocClassifierResponse" messageType="tns:HardshipDocClassifierResponseMessage"/>
+    </variables>
+
+    <sequence name="MainSequence">
+
+        <!-- Receive modification application request -->
+        <receive name="ReceiveRequest"
+                 partnerLink="ModificationProcessClient"
+                 operation="processModification"
+                 variable="inputVariable"
+                 createInstance="yes"/>
+
+        <!-- ============================================================== -->
+        <!-- STEP 1: DTI/LTV Calculation (PostModDtiCalculator Java Adapter)       -->
+        <!-- JAR: SCA-INF/lib/postModDti-calculator.jar                            -->
+        <!-- ============================================================== -->
+
+        <bpelx:exec name="CalculatePostModDti" language="java">
+            <![CDATA[
+                // Instantiate the DTI Calculator Java Adapter
+                com.unified.mortgage.modification.adapters.PostModDtiCalculator calculator = new com.unified.mortgage.modification.adapters.PostModDtiCalculator();
+
+                // Get modification data from input variables
+                double hardshipMonthlyIncome = Double.parseDouble(
+                    (String)getVariableData("inputVariable", "payload", "/types:ModificationProcessRequest/types:hardshipMonthlyIncome"));
+                double monthlyObligations = Double.parseDouble(
+                    (String)getVariableData("inputVariable", "payload", "/types:ModificationProcessRequest/types:monthlyObligations"));
+                double unpaidPrincipalBalance = Double.parseDouble(
+                    (String)getVariableData("inputVariable", "payload", "/types:ModificationProcessRequest/types:unpaidPrincipalBalance"));
+                double propertyValue = Double.parseDouble(
+                    (String)getVariableData("inputVariable", "payload", "/types:ModificationProcessRequest/types:propertyValue"));
+
+                // Calculate DTI and LTV ratios
+                double postModDti = calculator.calculatePostModDti(hardshipMonthlyIncome, monthlyObligations);
+                double markToMarketLtv = calculator.calculateMarkToMarketLtv(unpaidPrincipalBalance, propertyValue);
+
+                // Set results to BPEL variables
+                setVariableData("postModDtiRatio", Double.valueOf(postModDti));
+                setVariableData("markToMarketLtvRatio", Double.valueOf(markToMarketLtv));
+
+                addAuditTrailEntry("DTI Calculator: DTI=" + postModDti + "%, LTV=" + markToMarketLtv + "%");
+            ]]>
+        </bpelx:exec>
+
+        <!-- ============================================================== -->
+        <!-- STEP 1b: Credit Check (HardshipCreditReviewEJB via binding.ejb)         -->
+        <!-- EJB: ejb/HardshipCreditReview on WebLogic t3://localhost:12001           -->
+        <!-- ============================================================== -->
+
+        <assign name="PrepareHardshipCreditReviewRequest">
+            <copy>
+                <from>$inputVariable.payload/types:borrowerTaxId</from>
+                <to>$hardshipCreditReviewRequest.payload/types:borrowerTaxId</to>
+            </copy>
+            <copy>
+                <from>$inputVariable.payload/types:applicantFirstName</from>
+                <to>$hardshipCreditReviewRequest.payload/types:firstName</to>
+            </copy>
+            <copy>
+                <from>$inputVariable.payload/types:applicantLastName</from>
+                <to>$hardshipCreditReviewRequest.payload/types:lastName</to>
+            </copy>
+        </assign>
+
+        <invoke name="InvokeHardshipCreditReview"
+                partnerLink="HardshipCreditReviewPartner"
+                operation="reviewHardshipCredit"
+                inputVariable="hardshipCreditReviewRequest"
+                outputVariable="hardshipCreditReviewResponse"/>
+
+        <assign name="StoreHardshipCreditScore">
+            <copy>
+                <from>$hardshipCreditReviewResponse.payload/types:hardshipCreditScore</from>
+                <to>$hardshipCreditScore</to>
+            </copy>
+        </assign>
+
+        <!-- ============================================================== -->
+        <!-- STEP 1e: Risk Scoring (RedefaultRiskScorerComponent via Spring SCA)     -->
+        <!-- Spring: spring/redefault-risk-scorer-context.xml → RedefaultRiskScorerImpl.java   -->
+        <!-- ============================================================== -->
+
+        <assign name="PrepareRedefaultRiskScorerRequest">
+            <copy>
+                <from>$hardshipCreditScore</from>
+                <to>$redefaultRiskScorerRequest.payload/types:hardshipCreditScore</to>
+            </copy>
+            <copy>
+                <from>$postModDtiRatio</from>
+                <to>$redefaultRiskScorerRequest.payload/types:postModDti</to>
+            </copy>
+            <copy>
+                <from>$markToMarketLtvRatio</from>
+                <to>$redefaultRiskScorerRequest.payload/types:markToMarketLtv</to>
+            </copy>
+        </assign>
+
+        <invoke name="InvokeRedefaultRiskScorer"
+                partnerLink="RedefaultRiskScorerPartner"
+                operation="calculateRedefaultRiskScore"
+                inputVariable="redefaultRiskScorerRequest"
+                outputVariable="redefaultRiskScorerResponse"/>
+
+        <!-- ============================================================== -->
+        <!-- STEP 2: Document OCR Processing (HardshipOcrProcessor Java Adapter)    -->
+        <!-- JAR: SCA-INF/lib/ocr-processor.jar                             -->
+        <!-- ============================================================== -->
+
+        <bpelx:exec name="ProcessHardshipOcr" language="java">
+            <![CDATA[
+                // Instantiate the OCR Processor Java Adapter
+                com.unified.mortgage.modification.adapters.HardshipOcrProcessor processor = new com.unified.mortgage.modification.adapters.HardshipOcrProcessor();
+
+                // Get document data from input (if provided)
+                byte[] documentData = null;
+                try {
+                    String docBase64 = (String)getVariableData("inputVariable", "payload",
+                        "/types:ModificationProcessRequest/types:documentData");
+                    if (docBase64 != null && !docBase64.isEmpty()) {
+                        documentData = java.util.Base64.getDecoder().decode(docBase64);
+                    }
+                } catch (Exception e) {
+                    // No document data provided - use default
+                    documentData = "Sample W-2 wage and tax statement".getBytes();
+                }
+
+                // Process document with OCR
+                com.unified.mortgage.modification.adapters.HardshipOcrProcessor.HardshipOcrResult result = processor.processHardshipDocument(documentData);
+
+                // Set results to BPEL variables
+                setVariableData("documentType", result.getDocumentType());
+                setVariableData("ocrConfidence", Integer.valueOf(result.getConfidence()));
+
+                addAuditTrailEntry("OCR Processor: Type=" + result.getDocumentType() +
+                    ", Confidence=" + result.getConfidence() + "%");
+            ]]>
+        </bpelx:exec>
+
+        <!-- ============================================================== -->
+        <!-- STEP 2b: Doc Classification (HardshipDocClassifierComponent via Spring)-->
+        <!-- Spring: spring/hardship-doc-classifier-context.xml → HardshipDocClassifierImpl  -->
+        <!-- ============================================================== -->
+
+        <assign name="PrepareHardshipDocClassifierRequest">
+            <copy>
+                <from>$documentType</from>
+                <to>$hardshipDocClassifierRequest.payload/types:documentContent</to>
+            </copy>
+        </assign>
+
+        <invoke name="InvokeHardshipDocClassifier"
+                partnerLink="HardshipDocClassifierPartner"
+                operation="classifyHardshipDocument"
+                inputVariable="hardshipDocClassifierRequest"
+                outputVariable="hardshipDocClassifierResponse"/>
+
+        <!-- ============================================================== -->
+        <!-- STEP 3: Underwriting Decision (ModificationDecisionEngine Java Adapter)    -->
+        <!-- JAR: SCA-INF/lib/modificationDecision-engine.jar                           -->
+        <!-- ============================================================== -->
+
+        <bpelx:exec name="RunModificationDecisionEngine" language="java">
+            <![CDATA[
+                // Instantiate the Decision Engine Java Adapter
+                com.unified.mortgage.modification.adapters.ModificationDecisionEngine engine = new com.unified.mortgage.modification.adapters.ModificationDecisionEngine();
+
+                // Get DTI/LTV from previous step and other modification data
+                double postModDti = ((Double)getVariableData("postModDtiRatio")).doubleValue();
+                double markToMarketLtv = ((Double)getVariableData("markToMarketLtvRatio")).doubleValue();
+                double unpaidPrincipalBalance = Double.parseDouble(
+                    (String)getVariableData("inputVariable", "payload", "/types:ModificationProcessRequest/types:unpaidPrincipalBalance"));
+                double propertyValue = Double.parseDouble(
+                    (String)getVariableData("inputVariable", "payload", "/types:ModificationProcessRequest/types:propertyValue"));
+
+                // Build modification data map for modificationDecision engine
+                java.util.Map<String, Object> modificationData = new java.util.HashMap<>();
+                modificationData.put("unpaidPrincipalBalance", unpaidPrincipalBalance);
+                modificationData.put("propertyValue", propertyValue);
+                modificationData.put("postModDti", postModDti);
+                modificationData.put("markToMarketLtv", markToMarketLtv);
+                modificationData.put("hardshipCreditScore", 720); // Default for test
+
+                // Run modificationDecision engine
+                com.unified.mortgage.modification.adapters.ModificationDecisionEngine.ModificationDecision modificationDecision = engine.evaluateModification(modificationData);
+
+                // Set modificationDecision results to BPEL variables
+                setVariableData("modificationStatus", modificationDecision.getModificationDecision());
+                setVariableData("redefaultRiskScore", Integer.valueOf(modificationDecision.getRedefaultRiskScore()));
+
+                addAuditTrailEntry("Decision Engine: " + modificationDecision.getModificationDecision() +
+                    ", Risk Score=" + modificationDecision.getRedefaultRiskScore());
+            ]]>
+        </bpelx:exec>
+
+        <!-- ============================================================== -->
+        <!-- STEP 3b: Compliance Check (ModificationComplianceEJB via binding.ejb) -->
+        <!-- EJB: ejb/ModificationCompliance on WebLogic t3://compliance-server    -->
+        <!-- ============================================================== -->
+
+        <assign name="PrepareModificationComplianceRequest">
+            <copy>
+                <from>$inputVariable.payload/types:unpaidPrincipalBalance</from>
+                <to>$modificationComplianceRequest.payload/types:unpaidPrincipalBalance</to>
+            </copy>
+            <copy>
+                <from>$modificationStatus</from>
+                <to>$modificationComplianceRequest.payload/types:modificationStatus</to>
+            </copy>
+            <copy>
+                <from>$postModDtiRatio</from>
+                <to>$modificationComplianceRequest.payload/types:postModDtiRatio</to>
+            </copy>
+        </assign>
+
+        <invoke name="InvokeModificationCompliance"
+                partnerLink="ModificationCompliancePartner"
+                operation="checkModificationCompliance"
+                inputVariable="modificationComplianceRequest"
+                outputVariable="modificationComplianceResponse"/>
+
+        <assign name="StoreComplianceStatus">
+            <copy>
+                <from>$modificationComplianceResponse.payload/types:complianceStatus</from>
+                <to>$complianceStatus</to>
+            </copy>
+        </assign>
+
+        <!-- ============================================================== -->
+        <!-- STEP 4: Pricing Calculation (ModifiedTermsAmortizer Adapter)   -->
+        <!-- JAR: SCA-INF/lib/amortization-calculator.jar                   -->
+        <!-- ============================================================== -->
+
+        <bpelx:exec name="CalculateModifiedTerms" language="java">
+            <![CDATA[
+                // Instantiate the Amortization Calculator Java Adapter
+                com.unified.mortgage.modification.adapters.ModifiedTermsAmortizer calculator = new com.unified.mortgage.modification.adapters.ModifiedTermsAmortizer();
+
+                // Get modification data and LTV from previous steps
+                double markToMarketLtv = ((Double)getVariableData("markToMarketLtvRatio")).doubleValue();
+                int redefaultRiskScore = ((Integer)getVariableData("redefaultRiskScore")).intValue();
+                double unpaidPrincipalBalance = Double.parseDouble(
+                    (String)getVariableData("inputVariable", "payload", "/types:ModificationProcessRequest/types:unpaidPrincipalBalance"));
+                int termYears = 30; // Default 30-year mortgage
+
+                // Calculate interest rate based on LTV and risk score
+                // Map risk score (0-100) to credit score range (600-800)
+                int hardshipCreditScore = 600 + (redefaultRiskScore * 2);
+                double rate = calculator.calculateModifiedRate(markToMarketLtv, hardshipCreditScore, termYears);
+
+                // Calculate monthly payment
+                int termMonths = termYears * 12;
+                double payment = calculator.calculateModifiedPayment(unpaidPrincipalBalance, rate, termMonths);
+
+                // Set pricing results to BPEL variables
+                setVariableData("modifiedInterestRate", Double.valueOf(rate));
+                setVariableData("modifiedMonthlyPayment", Double.valueOf(payment));
+
+                addAuditTrailEntry("Amortization Calculator: Rate=" + rate +
+                    "%, Monthly Payment=$" + payment);
+            ]]>
+        </bpelx:exec>
+
+        <!-- Assign all results to response -->
+        <assign name="AssignResponse">
+            <copy>
+                <from>concat('MODIFICATION-', ora:getProcessId())</from>
+                <to>$outputVariable.payload/types:modificationId</to>
+            </copy>
+            <copy>
+                <from>'COMPLETED'</from>
+                <to>$outputVariable.payload/types:status</to>
+            </copy>
+            <copy>
+                <from>$modificationStatus</from>
+                <to>$outputVariable.payload/types:modificationDecision</to>
+            </copy>
+            <copy>
+                <from>$postModDtiRatio</from>
+                <to>$outputVariable.payload/types:postModDtiRatio</to>
+            </copy>
+            <copy>
+                <from>$markToMarketLtvRatio</from>
+                <to>$outputVariable.payload/types:markToMarketLtvRatio</to>
+            </copy>
+            <copy>
+                <from>$redefaultRiskScore</from>
+                <to>$outputVariable.payload/types:redefaultRiskScore</to>
+            </copy>
+            <copy>
+                <from>$modifiedMonthlyPayment</from>
+                <to>$outputVariable.payload/types:modifiedMonthlyPayment</to>
+            </copy>
+            <copy>
+                <from>$documentType</from>
+                <to>$outputVariable.payload/types:documentClassification</to>
+            </copy>
+        </assign>
+
+        <!-- Reply to client -->
+        <reply name="ReplyResponse"
+               partnerLink="ModificationProcessClient"
+               operation="processModification"
+               variable="outputVariable"/>
+
+    </sequence>
+
+</process>
