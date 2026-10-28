@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<application xmlns="http://wadl.dev.java.net/2009/02"
+              xmlns:xs="http://www.w3.org/2001/XMLSchema"
+              xmlns:tns="http://unified.mortgage.com/loanorchestration/loanapproval/wadl">
+              
+  <grammars>
+    <xs:schema targetNamespace="http://unified.mortgage.com/loanorchestration/loanapproval/wadl" elementFormDefault="qualified">
+      <xs:element name="LoanApplication">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="applicantName" type="xs:string"/>
+            <xs:element name="ssn" type="xs:string"/>
+            <xs:element name="monthlyIncome" type="xs:double"/>
+            <xs:element name="loanAmount" type="xs:double"/>
+            <xs:element name="propertyAddress" type="xs:string"/>
+            <xs:element name="propertyValue" type="xs:double"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="OrchestrationResponse">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="loanId" type="xs:long"/>
+            <xs:element name="status" type="xs:string"/>
+            <xs:element name="decision" type="xs:string"/>
+            <xs:element name="decisionNotes" type="xs:string"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:schema>
+  </grammars>
+
+  <resources base="http://localhost:8081/api">
+    <resource path="loans">
+      <resource path="apply">
+        <method name="POST" id="applyForLoan">
+          <request>
+            <representation mediaType="application/json" element="tns:LoanApplication"/>
+          </request>
+          <response status="200">
+            <representation mediaType="application/json" element="tns:OrchestrationResponse"/>
+          </response>
+        </method>
+      </resource>
+    </resource>
+  </resources>
+</application>

@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<composite name="LoanServiceSOAEngine"
+           revision="1.0"
+           label="loan_approval_process"
+           mode="active"
+           state="on"
+           xmlns="http://xmlns.oracle.com/sca/1.0"
+           xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:ui="http://xmlns.oracle.com/soa/designer/">
+           
+  <import namespace="http://unified.mortgage.com/loanorchestration/loanapproval/wadl" location="LoanApprovalService.wadl" importType="wadl"/>
+  <import namespace="http://unified.mortgage.com/credit/wadl" location="CreditService.wadl" importType="wadl"/>
+  <import namespace="http://unified.mortgage.com/valuation/wadl" location="ValuationService.wadl" importType="wadl"/>
+  <import namespace="http://unified.mortgage.com/underwriting/wadl" location="UnderwritingService.wadl" importType="wadl"/>
+  <import namespace="http://unified.mortgage.com/disbursement/wadl" location="DisbursementService.wadl" importType="wadl"/>
+  <import namespace="http://unified.mortgage.com/notification/wadl" location="NotificationService.wadl" importType="wadl"/>
+  
+  <service name="LoanApprovalService" ui:wadlLocation="LoanApprovalService.wadl">
+    <interface.wadl interface="LoanApprovalService.wadl#path(/loans/apply)"/>
+    <binding.rest uri="/api/loans/apply"/>
+  </service>
+  
+  <property name="productVersion" type="xs:string" many="false">12.2.1.4.0</property>
+  
+  <component name="LoanApprovalProcessBpel" version="2.0">
+    <implementation.bpel src="LoanApprovalProcess.bpel"/>
+    <componentType>
+      <service name="LoanApprovalService" ui:wadlLocation="LoanApprovalService.wadl">
+        <interface.wadl interface="LoanApprovalService.wadl#path(/loans/apply)"/>
+      </service>
+      <reference name="CreditProcessRef" ui:wadlLocation="CreditService.wadl">
+        <interface.wadl interface="CreditService.wadl#path(/credit-check)"/>
+      </reference>
+      <reference name="ValuationProcessRef" ui:wadlLocation="ValuationService.wadl">
+        <interface.wadl interface="ValuationService.wadl#path(/appraisals)"/>
+      </reference>
+      <reference name="UnderwritingProcessRef" ui:wadlLocation="UnderwritingService.wadl">
+        <interface.wadl interface="UnderwritingService.wadl#path(/underwrite)"/>
+      </reference>
+      <reference name="DisbursementProcessRef" ui:wadlLocation="DisbursementService.wadl">
+        <interface.wadl interface="DisbursementService.wadl#path(/disbursements)"/>
+      </reference>
+      <reference name="NotificationProcessRef" ui:wadlLocation="NotificationService.wadl">
+        <interface.wadl interface="NotificationService.wadl#path(/notifications)"/>
+      </reference>
+    </componentType>
+  </component>
+  
+  <reference name="CreditProcessRef" ui:wadlLocation="CreditService.wadl">
+    <interface.wadl interface="CreditService.wadl#path(/credit-check)"/>
+    <binding.rest location="http://localhost:8082/api/credit-check"/>
+  </reference>
+  
+  <reference name="ValuationProcessRef" ui:wadlLocation="ValuationService.wadl">
+    <interface.wadl interface="ValuationService.wadl#path(/appraisals)"/>
+    <binding.rest location="http://localhost:8083/api/appraisals"/>
+  </reference>
+  
+  <reference name="UnderwritingProcessRef" ui:wadlLocation="UnderwritingService.wadl">
+    <interface.wadl interface="UnderwritingService.wadl#path(/underwrite)"/>
+    <binding.rest location="http://localhost:8084/api/underwrite"/>
+  </reference>
+  
+  <reference name="DisbursementProcessRef" ui:wadlLocation="DisbursementService.wadl">
+    <interface.wadl interface="DisbursementService.wadl#path(/disbursements)"/>
+    <binding.rest location="http://localhost:8085/api/disbursements"/>
+  </reference>
+  
+  <reference name="NotificationProcessRef" ui:wadlLocation="NotificationService.wadl">
+    <interface.wadl interface="NotificationService.wadl#path(/notifications)"/>
+    <binding.rest location="http://localhost:8086/api/notifications"/>
+  </reference>
+  
+  <wire>
+    <source.uri>LoanApprovalService</source.uri>
+    <target.uri>LoanApprovalProcessBpel/LoanApprovalService</target.uri>
+  </wire>
+  <wire>
+    <source.uri>LoanApprovalProcessBpel/CreditProcessRef</source.uri>
+    <target.uri>CreditProcessRef</target.uri>
+  </wire>
+  <wire>
+    <source.uri>LoanApprovalProcessBpel/ValuationProcessRef</source.uri>
+    <target.uri>ValuationProcessRef</target.uri>
+  </wire>
+  <wire>
+    <source.uri>LoanApprovalProcessBpel/UnderwritingProcessRef</source.uri>
+    <target.uri>UnderwritingProcessRef</target.uri>
+  </wire>
+  <wire>
+    <source.uri>LoanApprovalProcessBpel/DisbursementProcessRef</source.uri>
+    <target.uri>DisbursementProcessRef</target.uri>
+  </wire>
+  <wire>
+    <source.uri>LoanApprovalProcessBpel/NotificationProcessRef</source.uri>
+    <target.uri>NotificationProcessRef</target.uri>
+  </wire>
+  
+</composite>

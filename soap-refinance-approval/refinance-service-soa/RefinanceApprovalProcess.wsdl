@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:definitions name="RefinanceApprovalProcess"
+                  targetNamespace="http://xmlns.oracle.com/RefinanceOrchestration/RefinanceApprovalProcess"
+                  xmlns:tns="http://xmlns.oracle.com/RefinanceOrchestration/RefinanceApprovalProcess"
+                  xmlns:types="http://xmlns.oracle.com/RefinanceOrchestration/types"
+                  xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+                  xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/">
+
+  <wsdl:types>
+    <xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+      <xsd:import namespace="http://xmlns.oracle.com/RefinanceOrchestration/types" schemaLocation="RefinanceWorkflow.xsd" />
+    </xsd:schema>
+  </wsdl:types>
+
+  <wsdl:message name="RefinanceApprovalRequestMessage">
+    <wsdl:part name="payload" element="types:RefinanceApplicationRequest"/>
+  </wsdl:message>
+  <wsdl:message name="RefinanceApprovalResponseMessage">
+    <wsdl:part name="payload" element="types:RefinanceApplicationResponse"/>
+  </wsdl:message>
+  <wsdl:message name="SanctionListFaultMessage">
+    <wsdl:part name="fault" element="types:RefinanceFaultDetail"/>
+  </wsdl:message>
+
+  <wsdl:portType name="RefinanceApprovalProcess">
+    <wsdl:operation name="initiateRefinance">
+      <wsdl:input message="tns:RefinanceApprovalRequestMessage"/>
+      <wsdl:output message="tns:RefinanceApprovalResponseMessage"/>
+      <wsdl:fault name="sanctionFault" message="tns:SanctionListFaultMessage"/>
+    </wsdl:operation>
+  </wsdl:portType>
+
+  <wsdl:binding name="RefinanceApprovalProcessBinding" type="tns:RefinanceApprovalProcess">
+    <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+    <wsdl:operation name="initiateRefinance">
+      <soap:operation soapAction="initiateRefinance"/>
+      <wsdl:input>
+        <soap:body use="literal"/>
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal"/>
+      </wsdl:output>
+      <wsdl:fault name="sanctionFault">
+        <soap:fault name="sanctionFault" use="literal"/>
+      </wsdl:fault>
+    </wsdl:operation>
+  </wsdl:binding>
+
+  <wsdl:service name="refinanceapproval_client_ep">
+    <wsdl:port name="RefinanceApprovalProcess_pt" binding="tns:RefinanceApprovalProcessBinding">
+      <soap:address location="http://localhost:9081/soap/RefinanceApprovalProcess"/>
+    </wsdl:port>
+  </wsdl:service>
+
+</wsdl:definitions>

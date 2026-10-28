@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<composite name="RefinanceServiceSOAEngine"
+           revision="1.0"
+           label="RefinanceOrchestrationMasterEngine"
+           mode="active"
+           state="on"
+           xmlns="http://xmlns.oracle.com/sca/1.0"
+           xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:ui="http://xmlns.oracle.com/soa/designer/">
+
+  <!-- Imports pointing to standalone sub-composites -->
+  <import namespace="http://xmlns.oracle.com/RefinanceOrchestration/RefinanceApprovalProcess"
+          location="RefinanceApprovalProcess.wsdl" importType="wsdl"/>
+  <import namespace="http://xmlns.oracle.com/RefinanceOrchestration/CreditVerificationProcess"
+          location="../soa-creditverification-composite/CreditVerificationProcess.wsdl" importType="wsdl"/>
+  <import namespace="http://xmlns.oracle.com/RefinanceOrchestration/ReappraisalProcess"
+          location="../soa-reappraisal-composite/ReappraisalProcess.wsdl" importType="wsdl"/>
+  <import namespace="http://xmlns.oracle.com/RefinanceOrchestration/RefinanceUnderwritingProcess"
+          location="../soa-refinanceunderwriting-composite/RefinanceUnderwritingProcess.wsdl" importType="wsdl"/>
+  <import namespace="http://xmlns.oracle.com/RefinanceOrchestration/PayoffDisbursementProcess"
+          location="../soa-payoffdisbursement-composite/PayoffDisbursementProcess.wsdl" importType="wsdl"/>
+  <import namespace="http://xmlns.oracle.com/RefinanceOrchestration/RefinanceNotificationProcess"
+          location="../soa-refinancenotification-composite/RefinanceNotificationProcess.wsdl" importType="wsdl"/>
+
+  <!-- Client-facing Entry Point Proxy -->
+  <service name="refinanceapproval_client_ep" ui:wsdlLocation="RefinanceApprovalProcess.wsdl">
+    <interface.wsdl interface="http://xmlns.oracle.com/RefinanceOrchestration/RefinanceApprovalProcess#wsdl.interface(RefinanceApprovalProcess)"/>
+    <binding.ws port="http://xmlns.oracle.com/RefinanceOrchestration/RefinanceApprovalProcess#wsdl.endpoint(refinanceapproval_client_ep/RefinanceApprovalProcess_pt)">
+      <property name="weblogic.wsee.wsat.transaction.flowOption" type="xs:string" many="false">NEVER</property>
+    </binding.ws>
+  </service>
+
+  <property name="productVersion" type="xs:string" many="false">12.2.1.4.0</property>
+
+  <!-- BPEL Orchestrator Component -->
+  <component name="RefinanceApprovalProcess" version="2.0">
+    <implementation.bpel src="RefinanceApprovalProcess.bpel"/>
+    <componentType>
+      <service name="refinanceapproval_client" ui:wsdlLocation="RefinanceApprovalProcess.wsdl">
+        <interface.wsdl interface="http://xmlns.oracle.com/RefinanceOrchestration/RefinanceApprovalProcess#wsdl.interface(RefinanceApprovalProcess)"/>
+      </service>
+      <reference name="CreditVerificationProcessRef" ui:wsdlLocation="../soa-creditverification-composite/CreditVerificationProcess.wsdl">
+        <interface.wsdl interface="http://xmlns.oracle.com/RefinanceOrchestration/CreditVerificationProcess#wsdl.interface(CreditVerificationProcess)"/>
+      </reference>
+      <reference name="ReappraisalProcessRef" ui:wsdlLocation="../soa-reappraisal-composite/ReappraisalProcess.wsdl">
+        <interface.wsdl interface="http://xmlns.oracle.com/RefinanceOrchestration/ReappraisalProcess#wsdl.interface(ReappraisalProcess)"/>
+      </reference>
+      <reference name="RefinanceUnderwritingProcessRef" ui:wsdlLocation="../soa-refinanceunderwriting-composite/RefinanceUnderwritingProcess.wsdl">
+        <interface.wsdl interface="http://xmlns.oracle.com/RefinanceOrchestration/RefinanceUnderwritingProcess#wsdl.interface(RefinanceUnderwritingProcess)"/>
+      </reference>
+      <reference name="PayoffDisbursementProcessRef" ui:wsdlLocation="../soa-payoffdisbursement-composite/PayoffDisbursementProcess.wsdl">
+        <interface.wsdl interface="http://xmlns.oracle.com/RefinanceOrchestration/PayoffDisbursementProcess#wsdl.interface(PayoffDisbursementProcess)"/>
+      </reference>
+      <reference name="RefinanceNotificationProcessRef" ui:wsdlLocation="../soa-refinancenotification-composite/RefinanceNotificationProcess.wsdl">
+        <interface.wsdl interface="http://xmlns.oracle.com/RefinanceOrchestration/RefinanceNotificationProcess#wsdl.interface(RefinanceNotificationProcess)"/>
+      </reference>
+    </componentType>
+    <property name="bpel.config.transaction" type="xs:string" many="false">required</property>
+  </component>
+
+  <!-- References pointing to the external deployment endpoints of the sub-composites -->
+  <reference name="CreditVerificationProcessRef" ui:wsdlLocation="../soa-creditverification-composite/CreditVerificationProcess.wsdl">
+    <interface.wsdl interface="http://xmlns.oracle.com/RefinanceOrchestration/CreditVerificationProcess#wsdl.interface(CreditVerificationProcess)"/>
+    <binding.ws port="http://xmlns.oracle.com/RefinanceOrchestration/CreditVerificationProcess#wsdl.endpoint(creditverificationprocess_client_ep/CreditVerificationProcess_pt)"
+                location="http://localhost:9082/soap/CreditVerificationProcess?wsdl"
+                soapVersion="1.1"/>
+  </reference>
+
+  <reference name="ReappraisalProcessRef" ui:wsdlLocation="../soa-reappraisal-composite/ReappraisalProcess.wsdl">
+    <interface.wsdl interface="http://xmlns.oracle.com/RefinanceOrchestration/ReappraisalProcess#wsdl.interface(ReappraisalProcess)"/>
+    <binding.ws port="http://xmlns.oracle.com/RefinanceOrchestration/ReappraisalProcess#wsdl.endpoint(reappraisalprocess_client_ep/ReappraisalProcess_pt)"
+                location="http://localhost:9083/soap/ReappraisalProcess?wsdl"
+                soapVersion="1.1"/>
+  </reference>
+
+  <reference name="RefinanceUnderwritingProcessRef" ui:wsdlLocation="../soa-refinanceunderwriting-composite/RefinanceUnderwritingProcess.wsdl">
+    <interface.wsdl interface="http://xmlns.oracle.com/RefinanceOrchestration/RefinanceUnderwritingProcess#wsdl.interface(RefinanceUnderwritingProcess)"/>
+    <binding.ws port="http://xmlns.oracle.com/RefinanceOrchestration/RefinanceUnderwritingProcess#wsdl.endpoint(refinanceunderwritingprocess_client_ep/RefinanceUnderwritingProcess_pt)"
+                location="http://localhost:9084/soap/RefinanceUnderwritingProcess?wsdl"
+                soapVersion="1.1"/>
+  </reference>
+
+  <reference name="PayoffDisbursementProcessRef" ui:wsdlLocation="../soa-payoffdisbursement-composite/PayoffDisbursementProcess.wsdl">
+    <interface.wsdl interface="http://xmlns.oracle.com/RefinanceOrchestration/PayoffDisbursementProcess#wsdl.interface(PayoffDisbursementProcess)"/>
+    <binding.ws port="http://xmlns.oracle.com/RefinanceOrchestration/PayoffDisbursementProcess#wsdl.endpoint(payoffdisbursementprocess_client_ep/PayoffDisbursementProcess_pt)"
+                location="http://localhost:9085/soap/PayoffDisbursementProcess?wsdl"
+                soapVersion="1.1"/>
+  </reference>
+
+  <reference name="RefinanceNotificationProcessRef" ui:wsdlLocation="../soa-refinancenotification-composite/RefinanceNotificationProcess.wsdl">
+    <interface.wsdl interface="http://xmlns.oracle.com/RefinanceOrchestration/RefinanceNotificationProcess#wsdl.interface(RefinanceNotificationProcess)"/>
+    <binding.ws port="http://xmlns.oracle.com/RefinanceOrchestration/RefinanceNotificationProcess#wsdl.endpoint(refinancenotificationprocess_client_ep/RefinanceNotificationProcess_pt)"
+                location="http://localhost:9086/soap/RefinanceNotificationProcess?wsdl"
+                soapVersion="1.1"/>
+  </reference>
+
+  <!-- Wires binding main orchestrator to downstream sub-composites -->
+  <wire>
+    <source.uri>refinanceapproval_client_ep</source.uri>
+    <target.uri>RefinanceApprovalProcess/refinanceapproval_client</target.uri>
+  </wire>
+  <wire>
+    <source.uri>RefinanceApprovalProcess/CreditVerificationProcessRef</source.uri>
+    <target.uri>CreditVerificationProcessRef</target.uri>
+  </wire>
+  <wire>
+    <source.uri>RefinanceApprovalProcess/ReappraisalProcessRef</source.uri>
+    <target.uri>ReappraisalProcessRef</target.uri>
+  </wire>
+  <wire>
+    <source.uri>RefinanceApprovalProcess/RefinanceUnderwritingProcessRef</source.uri>
+    <target.uri>RefinanceUnderwritingProcessRef</target.uri>
+  </wire>
+  <wire>
+    <source.uri>RefinanceApprovalProcess/PayoffDisbursementProcessRef</source.uri>
+    <target.uri>PayoffDisbursementProcessRef</target.uri>
+  </wire>
+  <wire>
+    <source.uri>RefinanceApprovalProcess/RefinanceNotificationProcessRef</source.uri>
+    <target.uri>RefinanceNotificationProcessRef</target.uri>
+  </wire>
+
+</composite>

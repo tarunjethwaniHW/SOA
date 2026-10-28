@@ -1,0 +1,344 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<process name="RefinanceApprovalProcess"
+         targetNamespace="http://xmlns.oracle.com/RefinanceOrchestration/RefinanceApprovalProcess"
+         xmlns="http://docs.oasis-open.org/wsbpel/2.0/process/executable"
+         xmlns:client="http://xmlns.oracle.com/RefinanceOrchestration/RefinanceApprovalProcess"
+         xmlns:types="http://xmlns.oracle.com/RefinanceOrchestration/types"
+         xmlns:credit="http://xmlns.oracle.com/RefinanceOrchestration/CreditVerificationProcess"
+         xmlns:val="http://xmlns.oracle.com/RefinanceOrchestration/ReappraisalProcess"
+         xmlns:under="http://xmlns.oracle.com/RefinanceOrchestration/RefinanceUnderwritingProcess"
+         xmlns:disb="http://xmlns.oracle.com/RefinanceOrchestration/PayoffDisbursementProcess"
+         xmlns:notif="http://xmlns.oracle.com/RefinanceOrchestration/RefinanceNotificationProcess"
+         xmlns:bpelx="http://schemas.oracle.com/bpel/extension"
+         xmlns:bpel="http://docs.oasis-open.org/wsbpel/2.0/process/executable"
+         xmlns:ns1="http://xmlns.oracle.com/RefinanceOrchestration/types">
+
+  <!-- Import Partner WSDLs -->
+  <import namespace="http://xmlns.oracle.com/RefinanceOrchestration/RefinanceApprovalProcess" location="RefinanceApprovalProcess.wsdl" importType="wsdl"/>
+  <import namespace="http://xmlns.oracle.com/RefinanceOrchestration/CreditVerificationProcess" location="../soa-creditverification-composite/CreditVerificationProcess.wsdl" importType="wsdl"/>
+  <import namespace="http://xmlns.oracle.com/RefinanceOrchestration/ReappraisalProcess" location="../soa-reappraisal-composite/ReappraisalProcess.wsdl" importType="wsdl"/>
+  <import namespace="http://xmlns.oracle.com/RefinanceOrchestration/RefinanceUnderwritingProcess" location="../soa-refinanceunderwriting-composite/RefinanceUnderwritingProcess.wsdl" importType="wsdl"/>
+  <import namespace="http://xmlns.oracle.com/RefinanceOrchestration/PayoffDisbursementProcess" location="../soa-payoffdisbursement-composite/PayoffDisbursementProcess.wsdl" importType="wsdl"/>
+  <import namespace="http://xmlns.oracle.com/RefinanceOrchestration/RefinanceNotificationProcess" location="../soa-refinancenotification-composite/RefinanceNotificationProcess.wsdl" importType="wsdl"/>
+
+  <!-- Partner Links -->
+  <partnerLinks>
+    <partnerLink name="refinanceapproval_client" partnerLinkType="client:RefinanceApprovalProcess" myRole="RefinanceApprovalProcessProvider"/>
+    <partnerLink name="CreditVerificationProcessRef" partnerRole="CreditVerificationProcessProvider"/>
+    <partnerLink name="ReappraisalProcessRef" partnerRole="ReappraisalServiceProvider"/>
+    <partnerLink name="RefinanceUnderwritingProcessRef" partnerRole="RefinanceUnderwritingServiceProvider"/>
+    <partnerLink name="PayoffDisbursementProcessRef" partnerRole="PayoffDisbursementServiceProvider"/>
+    <partnerLink name="RefinanceNotificationProcessRef" partnerRole="RefinanceNotificationServiceProvider"/>
+  </partnerLinks>
+
+  <!-- Variables -->
+  <variables>
+    <!-- Entry / Exit Payloads -->
+    <variable name="inputVar" messageType="client:RefinanceApprovalRequestMessage"/>
+    <variable name="outputVar" messageType="client:RefinanceApprovalResponseMessage"/>
+    <variable name="sanctionFaultVar" messageType="client:SanctionListFaultMessage"/>
+    
+    <!-- Downstream BPEL request/responses -->
+    <variable name="creditRequest" messageType="credit:CreditVerificationRequestMessage"/>
+    <variable name="creditResponse" messageType="credit:CreditVerificationResponseMessage"/>
+
+    <variable name="reappraisalRequest" messageType="val:ReappraisalRequestMessage"/>
+    <variable name="reappraisalResponse" messageType="val:ReappraisalResponseMessage"/>
+    <variable name="reappraisalRefundRequest" messageType="val:ReappraisalRefundRequestMessage"/>
+    <variable name="reappraisalRefundResponse" messageType="val:ReappraisalRefundResponseMessage"/>
+    
+    <variable name="underwritingRequest" messageType="under:RefinanceUnderwritingRequestMessage"/>
+    <variable name="underwritingResponse" messageType="under:RefinanceUnderwritingResponseMessage"/>
+    
+    <variable name="disbursementRequest" messageType="disb:PayoffDisbursementRequestMessage"/>
+    <variable name="disbursementResponse" messageType="disb:PayoffDisbursementResponseMessage"/>
+    
+    <variable name="notificationRequest" messageType="notif:RefinanceNotificationRequestMessage"/>
+    <variable name="notificationResponse" messageType="notif:RefinanceNotificationResponseMessage"/>
+  </variables>
+
+  <!-- Global Fault Handlers -->
+  <faultHandlers>
+    
+    <!-- Identity Watchlist Match (Trigger saga compensation for appraisal refunds) -->
+    <catch faultName="ns1:FraudAlertFault">
+      <sequence name="FraudCompensationSequence">
+        
+        <!-- Run compensation handler on ValuationScope -->
+        <compensate target="ReappraisalScope"/>
+        
+        <assign name="AssignFraudRejection">
+          <copy>
+            <from>number(0)</from>
+            <to>$outputVar.payload/ns1:loanId</to>
+          </copy>
+          <copy>
+            <from>'REJECTED'</from>
+            <to>$outputVar.payload/ns1:status</to>
+          </copy>
+          <copy>
+            <from>'REJECTED'</from>
+            <to>$outputVar.payload/ns1:decision</to>
+          </copy>
+          <copy>
+            <from>'Saga compensated: Fraud watchlist match triggered valuation fee refund.'</from>
+            <to>$outputVar.payload/ns1:decisionNotes</to>
+          </copy>
+        </assign>
+        <reply name="ReplyFraudRejection" partnerLink="refinanceapproval_client" portType="client:RefinanceApprovalProcess" operation="initiateRefinance" variable="outputVar"/>
+      </sequence>
+    </catch>
+
+    <!-- Catch Credit check service down error -->
+    <catch faultName="ns1:CreditServiceDownFault">
+      <sequence name="CreditVerificationDownSequence">
+        <assign name="AssignCreditVerificationDownRejection">
+          <copy>
+            <from>number(0)</from>
+            <to>$outputVar.payload/ns1:loanId</to>
+          </copy>
+          <copy>
+            <from>'REJECTED'</from>
+            <to>$outputVar.payload/ns1:status</to>
+          </copy>
+          <copy>
+            <from>'REJECTED'</from>
+            <to>$outputVar.payload/ns1:decision</to>
+          </copy>
+          <copy>
+            <from>'System fault: Credit check service is offline. Please try again later.'</from>
+            <to>$outputVar.payload/ns1:decisionNotes</to>
+          </copy>
+        </assign>
+        <reply name="ReplyCreditVerificationDownRejection" partnerLink="refinanceapproval_client" portType="client:RefinanceApprovalProcess" operation="initiateRefinance" variable="outputVar"/>
+      </sequence>
+    </catch>
+
+  </faultHandlers>
+
+  <!-- Complete Orchestration Workflow -->
+  <sequence name="main">
+    
+    <!-- 1. Receive client request -->
+    <receive name="ReceiveRequest" partnerLink="refinanceapproval_client" portType="client:RefinanceApprovalProcess" operation="initiateRefinance" variable="inputVar" createInstance="yes"/>
+
+    <!-- Sanction Watchlist Exit (Immediate check) -->
+    <if name="CheckSanctionList">
+      <condition>contains(lower-case($inputVar.payload/ns1:applicantName), 'voldemort') or ($inputVar.payload/ns1:ssn = '000-00-6666')</condition>
+      <sequence name="SanctionFaultSequence">
+        <assign name="AssignSanctionFault">
+          <copy>
+            <from>'OFAC-403'</from>
+            <to>$sanctionFaultVar.fault/ns1:errorCode</to>
+          </copy>
+          <copy>
+            <from>'Security Exit: Applicant matches Office of Foreign Assets Control sanction list.'</from>
+            <to>$sanctionFaultVar.fault/ns1:errorMessage</to>
+          </copy>
+          <copy>
+            <from>xp20:current-dateTime()</from>
+            <to>$sanctionFaultVar.fault/ns1:timestamp</to>
+          </copy>
+        </assign>
+        <reply name="ReplySanctionFault" partnerLink="refinanceapproval_client" portType="client:RefinanceApprovalProcess" operation="initiateRefinance" variable="sanctionFaultVar" faultName="client:sanctionFault"/>
+        <exit name="ExitSanctionBlocked"/>
+      </sequence>
+    </if>
+
+    <!-- 2. Invoke Standalone Credit Sub-composite -->
+    <scope name="CreditVerificationScope">
+      <sequence name="CreditVerificationSeq">
+        <assign name="AssignCreditVerification">
+          <copy>
+            <from>$inputVar.payload/ns1:ssn</from>
+            <to>$creditRequest.payload/ns1:ssn</to>
+          </copy>
+        </assign>
+        <invoke name="InvokeCreditVerification" partnerLink="CreditVerificationProcessRef" portType="credit:CreditVerificationProcess" operation="processCreditVerification" inputVariable="creditRequest" outputVariable="creditResponse"/>
+      </sequence>
+    </scope>
+
+    <!-- 3. Invoke Standalone Valuation Sub-composite (with registered saga compensation) -->
+    <scope name="ReappraisalScope">
+      <compensationHandler>
+        <sequence name="ReappraisalRefundSeq">
+          <assign name="AssignReappraisalRefund">
+            <copy>
+              <from>$inputVar.payload/ns1:propertyAddress</from>
+              <to>$reappraisalRefundRequest.payload/ns1:propertyAddress</to>
+            </copy>
+          </assign>
+          <invoke name="InvokeReappraisalRefund" partnerLink="ReappraisalProcessRef" portType="val:ReappraisalProcess" operation="processReappraisalRefund" inputVariable="reappraisalRefundRequest" outputVariable="reappraisalRefundResponse"/>
+        </sequence>
+      </compensationHandler>
+
+      <sequence name="ReappraisalSeq">
+        <assign name="AssignReappraisal">
+          <copy>
+            <from>$inputVar.payload/ns1:propertyAddress</from>
+            <to>$reappraisalRequest.payload/ns1:propertyAddress</to>
+          </copy>
+          <copy>
+            <from>$inputVar.payload/ns1:propertyValue</from>
+            <to>$reappraisalRequest.payload/ns1:estimatedValue</to>
+          </copy>
+        </assign>
+        <invoke name="InvokeReappraisal" partnerLink="ReappraisalProcessRef" portType="val:ReappraisalProcess" operation="processReappraisal" inputVariable="reappraisalRequest" outputVariable="reappraisalResponse"/>
+      </sequence>
+    </scope>
+
+    <!-- Fraud Watchlist Check (Simulating Watchlist fault throwing) -->
+    <if name="WatchlistCheck">
+      <condition>ends-with(translate($inputVar.payload/ns1:ssn, '-', ''), '9999')</condition>
+      <throw name="ThrowFraudAlert" faultName="ns1:FraudAlertFault"/>
+    </if>
+
+    <!-- 4. Invoke Standalone Underwriting Sub-composite -->
+    <assign name="AssignRefinanceUnderwriting">
+      <copy>
+        <from>$creditResponse.payload/ns1:creditScore</from>
+        <to>$underwritingRequest.payload/ns1:creditScore</to>
+      </copy>
+      <copy>
+        <from>$inputVar.payload/ns1:loanAmount</from>
+        <to>$underwritingRequest.payload/ns1:loanAmount</to>
+      </copy>
+      <copy>
+        <from>$inputVar.payload/ns1:monthlyIncome</from>
+        <to>$underwritingRequest.payload/ns1:monthlyIncome</to>
+      </copy>
+      <copy>
+        <from>$reappraisalResponse.payload/ns1:appraisedValue</from>
+        <to>$underwritingRequest.payload/ns1:propertyValue</to>
+      </copy>
+    </assign>
+    
+    <invoke name="InvokeRefinanceUnderwriting" partnerLink="RefinanceUnderwritingProcessRef" portType="under:RefinanceUnderwritingProcess" operation="processRefinanceUnderwriting" inputVariable="underwritingRequest" outputVariable="underwritingResponse"/>
+
+    <!-- 5. Decision Routing -->
+    <if name="RouteDecision">
+      <!-- Auto Approved -->
+      <condition>$underwritingResponse.payload/ns1:decision = 'AUTO_APPROVED'</condition>
+      <sequence name="ApprovedSequence">
+        
+        <!-- Call standalone Disbursement composite -->
+        <assign name="AssignPayoffDisbursement">
+          <copy>
+            <from>number(1003)</from>
+            <to>$disbursementRequest.payload/ns1:loanId</to>
+          </copy>
+          <copy>
+            <from>$inputVar.payload/ns1:loanAmount</from>
+            <to>$disbursementRequest.payload/ns1:loanAmount</to>
+          </copy>
+        </assign>
+        <invoke name="InvokePayoffDisbursement" partnerLink="PayoffDisbursementProcessRef" portType="disb:PayoffDisbursementProcess" operation="processPayoffDisbursement" inputVariable="disbursementRequest" outputVariable="disbursementResponse"/>
+
+        <!-- Call standalone Notification composite -->
+        <assign name="AssignRefinanceNotification">
+          <copy>
+            <from>number(1003)</from>
+            <to>$notificationRequest.payload/ns1:loanId</to>
+          </copy>
+          <copy>
+            <from>$inputVar.payload/ns1:applicantName</from>
+            <to>$notificationRequest.payload/ns1:applicantName</to>
+          </copy>
+          <copy>
+            <from>'APPROVED'</from>
+            <to>$notificationRequest.payload/ns1:decision</to>
+          </copy>
+        </assign>
+        <invoke name="InvokeRefinanceNotification" partnerLink="RefinanceNotificationProcessRef" portType="notif:RefinanceNotificationProcess" operation="processRefinanceNotification" inputVariable="notificationRequest" outputVariable="notificationResponse"/>
+
+        <assign name="AssignApprovedResponse">
+          <copy>
+            <from>number(1003)</from>
+            <to>$outputVar.payload/ns1:loanId</to>
+          </copy>
+          <copy>
+            <from>'DISBURSED'</from>
+            <to>$outputVar.payload/ns1:status</to>
+          </copy>
+          <copy>
+            <from>'APPROVED'</from>
+            <to>$outputVar.payload/ns1:decision</to>
+          </copy>
+          <copy>
+            <from>$underwritingResponse.payload/ns1:notes</from>
+            <to>$outputVar.payload/ns1:decisionNotes</to>
+          </copy>
+        </assign>
+      </sequence>
+
+      <!-- Auto Rejected -->
+      <bpel:elseif>
+        <bpel:condition>$underwritingResponse.payload/ns1:decision = 'AUTO_REJECTED'</bpel:condition>
+        <sequence name="RejectedSequence">
+          <assign name="AssignRefinanceNotificationReject">
+            <copy>
+              <from>number(1003)</from>
+              <to>$notificationRequest.payload/ns1:loanId</to>
+            </copy>
+            <copy>
+              <from>$inputVar.payload/ns1:applicantName</from>
+              <to>$notificationRequest.payload/ns1:applicantName</to>
+            </copy>
+            <copy>
+              <from>'REJECTED'</from>
+              <to>$notificationRequest.payload/ns1:decision</to>
+            </copy>
+          </assign>
+          <invoke name="InvokeRefinanceNotificationReject" partnerLink="RefinanceNotificationProcessRef" portType="notif:RefinanceNotificationProcess" operation="processRefinanceNotification" inputVariable="notificationRequest" outputVariable="notificationResponse"/>
+
+          <assign name="AssignRejectedResponse">
+            <copy>
+              <from>number(1003)</from>
+              <to>$outputVar.payload/ns1:loanId</to>
+            </copy>
+            <copy>
+              <from>'REJECTED'</from>
+              <to>$outputVar.payload/ns1:status</to>
+            </copy>
+            <copy>
+              <from>'REJECTED'</from>
+              <to>$outputVar.payload/ns1:decision</to>
+            </copy>
+            <copy>
+              <from>$underwritingResponse.payload/ns1:notes</from>
+              <to>$outputVar.payload/ns1:decisionNotes</to>
+            </copy>
+          </assign>
+        </sequence>
+      </bpel:elseif>
+
+      <!-- Manual Underwriting Review (Human Workflow queue) -->
+      <bpel:else>
+        <sequence name="ManualReviewHumanTask">
+          <assign name="AssignManualResponse">
+            <copy>
+              <from>number(1003)</from>
+              <to>$outputVar.payload/ns1:loanId</to>
+            </copy>
+            <copy>
+              <from>'PENDING_MANUAL_REVIEW'</from>
+              <to>$outputVar.payload/ns1:status</to>
+            </copy>
+            <copy>
+              <from>'PENDING'</from>
+              <to>$outputVar.payload/ns1:decision</to>
+            </copy>
+            <copy>
+              <from>$underwritingResponse.payload/ns1:notes</from>
+              <to>$outputVar.payload/ns1:decisionNotes</to>
+            </copy>
+          </assign>
+        </sequence>
+      </bpel:else>
+    </if>
+
+    <!-- 6. Reply response back to client -->
+    <reply name="ReplyClient" partnerLink="refinanceapproval_client" portType="client:RefinanceApprovalProcess" operation="initiateRefinance" variable="outputVar"/>
+
+  </sequence>
+</process>

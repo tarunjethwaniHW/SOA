@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<application xmlns="http://wadl.dev.java.net/2009/02"
+              xmlns:xs="http://www.w3.org/2001/XMLSchema"
+              xmlns:tns="http://unified.mortgage.com/underwriting/wadl">
+              
+  <grammars>
+    <xs:schema targetNamespace="http://unified.mortgage.com/underwriting/wadl" elementFormDefault="qualified">
+      <xs:element name="UnderwritingRequest">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="creditScore" type="xs:int"/>
+            <xs:element name="loanAmount" type="xs:double"/>
+            <xs:element name="monthlyIncome" type="xs:double"/>
+            <xs:element name="propertyValue" type="xs:double"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="UnderwritingResponse">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="decision" type="xs:string"/>
+            <xs:element name="notes" type="xs:string"/>
+            <xs:element name="dti" type="xs:double"/>
+            <xs:element name="ltv" type="xs:double"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:schema>
+  </grammars>
+
+  <resources base="http://localhost:8084/api">
+    <resource path="underwrite">
+      <method name="POST" id="processUnderwriting">
+        <request>
+          <representation mediaType="application/json" element="tns:UnderwritingRequest"/>
+        </request>
+        <response status="200">
+          <representation mediaType="application/json" element="tns:UnderwritingResponse"/>
+        </response>
+      </method>
+    </resource>
+  </resources>
+</application>

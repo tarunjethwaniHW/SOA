@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:definitions name="ReappraisalProcess"
+                  targetNamespace="http://xmlns.oracle.com/RefinanceOrchestration/ReappraisalProcess"
+                  xmlns:tns="http://xmlns.oracle.com/RefinanceOrchestration/ReappraisalProcess"
+                  xmlns:types="http://xmlns.oracle.com/RefinanceOrchestration/types"
+                  xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+                  xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/">
+
+  <wsdl:types>
+    <xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+      <xsd:import namespace="http://xmlns.oracle.com/RefinanceOrchestration/types" schemaLocation="../refinance-service-soa/RefinanceWorkflow.xsd" />
+    </xsd:schema>
+  </wsdl:types>
+
+  <wsdl:message name="ReappraisalRequestMessage">
+    <wsdl:part name="payload" element="types:ReappraisalRequest"/>
+  </wsdl:message>
+  <wsdl:message name="ReappraisalResponseMessage">
+    <wsdl:part name="payload" element="types:ReappraisalResponse"/>
+  </wsdl:message>
+  <wsdl:message name="ReappraisalRefundRequestMessage">
+    <wsdl:part name="payload" element="types:ReappraisalRefundRequest"/>
+  </wsdl:message>
+  <wsdl:message name="ReappraisalRefundResponseMessage">
+    <wsdl:part name="payload" element="types:ReappraisalRefundResponse"/>
+  </wsdl:message>
+
+  <wsdl:portType name="ReappraisalProcess">
+    <wsdl:operation name="processReappraisal">
+      <wsdl:input message="tns:ReappraisalRequestMessage"/>
+      <wsdl:output message="tns:ReappraisalResponseMessage"/>
+    </wsdl:operation>
+    <wsdl:operation name="processReappraisalRefund">
+      <wsdl:input message="tns:ReappraisalRefundRequestMessage"/>
+      <wsdl:output message="tns:ReappraisalRefundResponseMessage"/>
+    </wsdl:operation>
+  </wsdl:portType>
+
+  <wsdl:binding name="ReappraisalProcessBinding" type="tns:ReappraisalProcess">
+    <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+    <wsdl:operation name="processReappraisal">
+      <soap:operation soapAction="processReappraisal"/>
+      <wsdl:input>
+        <soap:body use="literal"/>
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal"/>
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="processReappraisalRefund">
+      <soap:operation soapAction="processReappraisalRefund"/>
+      <wsdl:input>
+        <soap:body use="literal"/>
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal"/>
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+
+  <wsdl:service name="reappraisalprocess_client_ep">
+    <wsdl:port name="ReappraisalProcess_pt" binding="tns:ReappraisalProcessBinding">
+      <soap:address location="http://localhost:9083/soap/ReappraisalProcess"/>
+    </wsdl:port>
+  </wsdl:service>
+
+</wsdl:definitions>

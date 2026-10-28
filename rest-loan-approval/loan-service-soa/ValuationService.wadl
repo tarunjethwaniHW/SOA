@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<application xmlns="http://wadl.dev.java.net/2009/02"
+              xmlns:xs="http://www.w3.org/2001/XMLSchema"
+              xmlns:tns="http://unified.mortgage.com/valuation/wadl">
+              
+  <grammars>
+    <xs:schema targetNamespace="http://unified.mortgage.com/valuation/wadl" elementFormDefault="qualified">
+      <xs:element name="ValuationRequest">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="propertyAddress" type="xs:string"/>
+            <xs:element name="estimatedValue" type="xs:double"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="ValuationResponse">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="appraisedValue" type="xs:double"/>
+            <xs:element name="status" type="xs:string"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="RefundRequest">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="propertyAddress" type="xs:string"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="RefundResponse">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="status" type="xs:string"/>
+            <xs:element name="message" type="xs:string"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:schema>
+  </grammars>
+
+  <resources base="http://localhost:8083/api">
+    <resource path="appraisals">
+      <method name="POST" id="appraise">
+        <request>
+          <representation mediaType="application/json" element="tns:ValuationRequest"/>
+        </request>
+        <response status="200">
+          <representation mediaType="application/json" element="tns:ValuationResponse"/>
+        </response>
+      </method>
+      <resource path="refund">
+        <method name="POST" id="refund">
+          <request>
+            <representation mediaType="application/json" element="tns:RefundRequest"/>
+          </request>
+          <response status="200">
+            <representation mediaType="application/json" element="tns:RefundResponse"/>
+          </response>
+        </method>
+      </resource>
+    </resource>
+  </resources>
+</application>

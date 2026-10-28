@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<application xmlns="http://wadl.dev.java.net/2009/02"
+              xmlns:xs="http://www.w3.org/2001/XMLSchema"
+              xmlns:tns="http://unified.mortgage.com/credit/wadl">
+              
+  <grammars>
+    <xs:schema targetNamespace="http://unified.mortgage.com/credit/wadl" elementFormDefault="qualified">
+      <xs:element name="CreditCheckRequest">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="ssn" type="xs:string"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="CreditCheckResponse">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="creditScore" type="xs:int"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:schema>
+  </grammars>
+
+  <resources base="http://localhost:8082/api">
+    <resource path="credit-check">
+      <method name="POST" id="processCreditCheck">
+        <request>
+          <representation mediaType="application/json" element="tns:CreditCheckRequest"/>
+        </request>
+        <response status="200">
+          <representation mediaType="application/json" element="tns:CreditCheckResponse"/>
+        </response>
+      </method>
+    </resource>
+  </resources>
+</application>

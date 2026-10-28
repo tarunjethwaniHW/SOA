@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:definitions name="CreditVerificationProcess"
+                  targetNamespace="http://xmlns.oracle.com/RefinanceOrchestration/CreditVerificationProcess"
+                  xmlns:tns="http://xmlns.oracle.com/RefinanceOrchestration/CreditVerificationProcess"
+                  xmlns:types="http://xmlns.oracle.com/RefinanceOrchestration/types"
+                  xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+                  xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/">
+
+  <wsdl:types>
+    <xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+      <xsd:import namespace="http://xmlns.oracle.com/RefinanceOrchestration/types" schemaLocation="../refinance-service-soa/RefinanceWorkflow.xsd" />
+    </xsd:schema>
+  </wsdl:types>
+
+  <wsdl:message name="CreditVerificationRequestMessage">
+    <wsdl:part name="payload" element="types:CreditVerificationRequest"/>
+  </wsdl:message>
+  <wsdl:message name="CreditVerificationResponseMessage">
+    <wsdl:part name="payload" element="types:CreditVerificationResponse"/>
+  </wsdl:message>
+
+  <wsdl:portType name="CreditVerificationProcess">
+    <wsdl:operation name="processCreditVerification">
+      <wsdl:input message="tns:CreditVerificationRequestMessage"/>
+      <wsdl:output message="tns:CreditVerificationResponseMessage"/>
+    </wsdl:operation>
+  </wsdl:portType>
+
+  <wsdl:binding name="CreditVerificationProcessBinding" type="tns:CreditVerificationProcess">
+    <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+    <wsdl:operation name="processCreditVerification">
+      <soap:operation soapAction="processCreditVerification"/>
+      <wsdl:input>
+        <soap:body use="literal"/>
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal"/>
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+
+  <wsdl:service name="creditverificationprocess_client_ep">
+    <wsdl:port name="CreditVerificationProcess_pt" binding="tns:CreditVerificationProcessBinding">
+      <soap:address location="http://localhost:9082/soap/CreditVerificationProcess"/>
+    </wsdl:port>
+  </wsdl:service>
+
+</wsdl:definitions>

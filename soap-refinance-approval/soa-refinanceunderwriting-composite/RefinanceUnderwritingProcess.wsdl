@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:definitions name="RefinanceUnderwritingProcess"
+                  targetNamespace="http://xmlns.oracle.com/RefinanceOrchestration/RefinanceUnderwritingProcess"
+                  xmlns:tns="http://xmlns.oracle.com/RefinanceOrchestration/RefinanceUnderwritingProcess"
+                  xmlns:types="http://xmlns.oracle.com/RefinanceOrchestration/types"
+                  xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+                  xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/">
+
+  <wsdl:types>
+    <xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+      <xsd:import namespace="http://xmlns.oracle.com/RefinanceOrchestration/types" schemaLocation="../refinance-service-soa/RefinanceWorkflow.xsd" />
+    </xsd:schema>
+  </wsdl:types>
+
+  <wsdl:message name="RefinanceUnderwritingRequestMessage">
+    <wsdl:part name="payload" element="types:RefinanceUnderwritingRequest"/>
+  </wsdl:message>
+  <wsdl:message name="RefinanceUnderwritingResponseMessage">
+    <wsdl:part name="payload" element="types:RefinanceUnderwritingResponse"/>
+  </wsdl:message>
+
+  <wsdl:portType name="RefinanceUnderwritingProcess">
+    <wsdl:operation name="processRefinanceUnderwriting">
+      <wsdl:input message="tns:RefinanceUnderwritingRequestMessage"/>
+      <wsdl:output message="tns:RefinanceUnderwritingResponseMessage"/>
+    </wsdl:operation>
+  </wsdl:portType>
+
+  <wsdl:binding name="RefinanceUnderwritingProcessBinding" type="tns:RefinanceUnderwritingProcess">
+    <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+    <wsdl:operation name="processRefinanceUnderwriting">
+      <soap:operation soapAction="processRefinanceUnderwriting"/>
+      <wsdl:input>
+        <soap:body use="literal"/>
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal"/>
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+
+  <wsdl:service name="refinanceunderwritingprocess_client_ep">
+    <wsdl:port name="RefinanceUnderwritingProcess_pt" binding="tns:RefinanceUnderwritingProcessBinding">
+      <soap:address location="http://localhost:9084/soap/RefinanceUnderwritingProcess"/>
+    </wsdl:port>
+  </wsdl:service>
+
+</wsdl:definitions>

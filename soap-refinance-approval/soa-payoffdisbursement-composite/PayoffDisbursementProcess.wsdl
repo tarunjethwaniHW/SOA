@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:definitions name="PayoffDisbursementProcess"
+                  targetNamespace="http://xmlns.oracle.com/RefinanceOrchestration/PayoffDisbursementProcess"
+                  xmlns:tns="http://xmlns.oracle.com/RefinanceOrchestration/PayoffDisbursementProcess"
+                  xmlns:types="http://xmlns.oracle.com/RefinanceOrchestration/types"
+                  xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+                  xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/">
+
+  <wsdl:types>
+    <xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+      <xsd:import namespace="http://xmlns.oracle.com/RefinanceOrchestration/types" schemaLocation="../refinance-service-soa/RefinanceWorkflow.xsd" />
+    </xsd:schema>
+  </wsdl:types>
+
+  <wsdl:message name="PayoffDisbursementRequestMessage">
+    <wsdl:part name="payload" element="types:PayoffDisbursementRequest"/>
+  </wsdl:message>
+  <wsdl:message name="PayoffDisbursementResponseMessage">
+    <wsdl:part name="payload" element="types:PayoffDisbursementResponse"/>
+  </wsdl:message>
+
+  <wsdl:portType name="PayoffDisbursementProcess">
+    <wsdl:operation name="processPayoffDisbursement">
+      <wsdl:input message="tns:PayoffDisbursementRequestMessage"/>
+      <wsdl:output message="tns:PayoffDisbursementResponseMessage"/>
+    </wsdl:operation>
+  </wsdl:portType>
+
+  <wsdl:binding name="PayoffDisbursementProcessBinding" type="tns:PayoffDisbursementProcess">
+    <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+    <wsdl:operation name="processPayoffDisbursement">
+      <soap:operation soapAction="processPayoffDisbursement"/>
+      <wsdl:input>
+        <soap:body use="literal"/>
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal"/>
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+
+  <wsdl:service name="payoffdisbursementprocess_client_ep">
+    <wsdl:port name="PayoffDisbursementProcess_pt" binding="tns:PayoffDisbursementProcessBinding">
+      <soap:address location="http://localhost:9085/soap/PayoffDisbursementProcess"/>
+    </wsdl:port>
+  </wsdl:service>
+
+</wsdl:definitions>

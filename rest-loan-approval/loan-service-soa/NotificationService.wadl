@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<application xmlns="http://wadl.dev.java.net/2009/02"
+              xmlns:xs="http://www.w3.org/2001/XMLSchema"
+              xmlns:tns="http://unified.mortgage.com/notification/wadl">
+              
+  <grammars>
+    <xs:schema targetNamespace="http://unified.mortgage.com/notification/wadl" elementFormDefault="qualified">
+      <xs:element name="NotificationRequest">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="loanId" type="xs:long"/>
+            <xs:element name="applicantName" type="xs:string"/>
+            <xs:element name="decision" type="xs:string"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="NotificationResponse">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="status" type="xs:string"/>
+            <xs:element name="message" type="xs:string"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:schema>
+  </grammars>
+
+  <resources base="http://localhost:8086/api">
+    <resource path="notifications">
+      <method name="POST" id="processNotification">
+        <request>
+          <representation mediaType="application/json" element="tns:NotificationRequest"/>
+        </request>
+        <response status="200">
+          <representation mediaType="application/json" element="tns:NotificationResponse"/>
+        </response>
+      </method>
+    </resource>
+  </resources>
+</application>

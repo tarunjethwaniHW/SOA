@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:definitions name="RefinanceNotificationProcess"
+                  targetNamespace="http://xmlns.oracle.com/RefinanceOrchestration/RefinanceNotificationProcess"
+                  xmlns:tns="http://xmlns.oracle.com/RefinanceOrchestration/RefinanceNotificationProcess"
+                  xmlns:types="http://xmlns.oracle.com/RefinanceOrchestration/types"
+                  xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+                  xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/">
+
+  <wsdl:types>
+    <xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+      <xsd:import namespace="http://xmlns.oracle.com/RefinanceOrchestration/types" schemaLocation="../refinance-service-soa/RefinanceWorkflow.xsd" />
+    </xsd:schema>
+  </wsdl:types>
+
+  <wsdl:message name="RefinanceNotificationRequestMessage">
+    <wsdl:part name="payload" element="types:RefinanceNotificationRequest"/>
+  </wsdl:message>
+  <wsdl:message name="RefinanceNotificationResponseMessage">
+    <wsdl:part name="payload" element="types:RefinanceNotificationResponse"/>
+  </wsdl:message>
+
+  <wsdl:portType name="RefinanceNotificationProcess">
+    <wsdl:operation name="processRefinanceNotification">
+      <wsdl:input message="tns:RefinanceNotificationRequestMessage"/>
+      <wsdl:output message="tns:RefinanceNotificationResponseMessage"/>
+    </wsdl:operation>
+  </wsdl:portType>
+
+  <wsdl:binding name="RefinanceNotificationProcessBinding" type="tns:RefinanceNotificationProcess">
+    <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+    <wsdl:operation name="processRefinanceNotification">
+      <soap:operation soapAction="processRefinanceNotification"/>
+      <wsdl:input>
+        <soap:body use="literal"/>
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal"/>
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+
+  <wsdl:service name="refinancenotificationprocess_client_ep">
+    <wsdl:port name="RefinanceNotificationProcess_pt" binding="tns:RefinanceNotificationProcessBinding">
+      <soap:address location="http://localhost:9086/soap/RefinanceNotificationProcess"/>
+    </wsdl:port>
+  </wsdl:service>
+
+</wsdl:definitions>
