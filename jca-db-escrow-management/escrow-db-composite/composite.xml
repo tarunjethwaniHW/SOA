@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<composite name="EscrowDBComposite"
+           revision="1.0"
+           label="Escrow Database Adapter Pattern Demo"
+           mode="active"
+           state="on"
+           xmlns="http://xmlns.oracle.com/sca/1.0"
+           xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:wsp="http://schemas.xmlsoap.org/ws/2004/09/policy"
+           xmlns:orawsp="http://schemas.oracle.com/ws/2006/01/policy"
+           xmlns:ui="http://xmlns.oracle.com/soa/designer/">
+
+    <!-- ================================================================== -->
+    <!-- SOA Database Adapter Pattern - Complete Call Chain Demo            -->
+    <!--                                                                    -->
+    <!-- Call Chain:                                                        -->
+    <!-- Java Client (SOAP) → WSDL → SOA_SERVICE → SOA_COMPONENT → BPEL    -->
+    <!--   → SOA_REFERENCE → JCA_ADAPTER_DB → DatabaseEntity               -->
+    <!-- ================================================================== -->
+
+    <!-- Import WSDLs -->
+    <import namespace="http://xmlns.oracle.com/EscrowServicing/EscrowDBProcess"
+            location="EscrowDBProcess.wsdl"
+            importType="wsdl"/>
+
+    <!-- Import DB Adapter WSDLs -->
+    <import namespace="http://xmlns.oracle.com/EscrowServicing/adapter/db/EscrowAccountDB"
+            location="adapters/EscrowAccountDB.wsdl"
+            importType="wsdl"/>
+    <import namespace="http://xmlns.oracle.com/EscrowServicing/adapter/db/EscrowHolderDB"
+            location="adapters/EscrowHolderDB.wsdl"
+            importType="wsdl"/>
+    <import namespace="http://xmlns.oracle.com/EscrowServicing/adapter/db/EscrowAnalysisDB"
+            location="adapters/EscrowAnalysisDB.wsdl"
+            importType="wsdl"/>
+
+    <!-- ================================================================== -->
+    <!-- Exposed Services (Entry Points)                                    -->
+    <!-- ================================================================== -->
+
+    <!-- SOAP Service Entry Point -->
+    <service name="EscrowDBService" ui:wsdlLocation="EscrowDBProcess.wsdl">
+        <interface.wsdl interface="http://xmlns.oracle.com/EscrowServicing/EscrowDBProcess#wsdl.interface(EscrowDBProcess)"/>
+        <binding.ws port="http://xmlns.oracle.com/EscrowServicing/EscrowDBProcess#wsdl.endpoint(escrowdb_client_ep/EscrowDBProcess_pt)">
+            <property name="weblogic.wsee.wsat.transaction.flowOption" type="xs:string" many="false">NEVER</property>
+        </binding.ws>
+    </service>
+
+    <!-- ================================================================== -->
+    <!-- BPEL Component                                                     -->
+    <!-- ================================================================== -->
+
+    <component name="EscrowDBProcess" version="2.0">
+        <implementation.bpel src="EscrowDBProcess.bpel"/>
+        <componentType>
+            <!-- Inbound Service Interface -->
+            <service name="EscrowDBService" ui:wsdlLocation="EscrowDBProcess.wsdl">
+                <interface.wsdl interface="http://xmlns.oracle.com/EscrowServicing/EscrowDBProcess#wsdl.interface(EscrowDBProcess)"/>
+            </service>
+
+            <!-- Database Adapter References -->
+            <reference name="EscrowAccountDBAdapter" ui:wsdlLocation="adapters/EscrowAccountDB.wsdl">
+                <interface.wsdl interface="http://xmlns.oracle.com/EscrowServicing/adapter/db/EscrowAccountDB#wsdl.interface(EscrowAccountDB_ptt)"/>
+            </reference>
+            <reference name="EscrowHolderDBAdapter" ui:wsdlLocation="adapters/EscrowHolderDB.wsdl">
+                <interface.wsdl interface="http://xmlns.oracle.com/EscrowServicing/adapter/db/EscrowHolderDB#wsdl.interface(EscrowHolderDB_ptt)"/>
+            </reference>
+            <reference name="EscrowAnalysisDBAdapter" ui:wsdlLocation="adapters/EscrowAnalysisDB.wsdl">
+                <interface.wsdl interface="http://xmlns.oracle.com/EscrowServicing/adapter/db/EscrowAnalysisDB#wsdl.interface(EscrowAnalysisDB_ptt)"/>
+            </reference>
+        </componentType>
+        <property name="bpel.config.transaction" type="xs:string" many="false">required</property>
+    </component>
+
+    <!-- ================================================================== -->
+    <!-- Database Adapter References (binding.jca)                          -->
+    <!-- ================================================================== -->
+
+    <!-- Escrow Application Database Adapter -->
+    <reference name="EscrowAccountDBAdapter" ui:wsdlLocation="adapters/EscrowAccountDB.wsdl">
+        <interface.wsdl interface="http://xmlns.oracle.com/EscrowServicing/adapter/db/EscrowAccountDB#wsdl.interface(EscrowAccountDB_ptt)"/>
+        <binding.jca config="adapters/EscrowAccountDB.jca"/>
+    </reference>
+
+    <!-- EscrowHolder Database Adapter -->
+    <reference name="EscrowHolderDBAdapter" ui:wsdlLocation="adapters/EscrowHolderDB.wsdl">
+        <interface.wsdl interface="http://xmlns.oracle.com/EscrowServicing/adapter/db/EscrowHolderDB#wsdl.interface(EscrowHolderDB_ptt)"/>
+        <binding.jca config="adapters/EscrowHolderDB.jca"/>
+    </reference>
+
+    <!-- Escrow analysis Database Adapter -->
+    <reference name="EscrowAnalysisDBAdapter" ui:wsdlLocation="adapters/EscrowAnalysisDB.wsdl">
+        <interface.wsdl interface="http://xmlns.oracle.com/EscrowServicing/adapter/db/EscrowAnalysisDB#wsdl.interface(EscrowAnalysisDB_ptt)"/>
+        <binding.jca config="adapters/EscrowAnalysisDB.jca"/>
+    </reference>
+
+    <!-- ================================================================== -->
+    <!-- Wiring                                                             -->
+    <!-- ================================================================== -->
+
+    <!-- Service Entry → BPEL Component -->
+    <wire>
+        <source.uri>EscrowDBService</source.uri>
+        <target.uri>EscrowDBProcess/EscrowDBService</target.uri>
+    </wire>
+
+    <!-- BPEL Component → Database Adapters -->
+    <wire>
+        <source.uri>EscrowDBProcess/EscrowAccountDBAdapter</source.uri>
+        <target.uri>EscrowAccountDBAdapter</target.uri>
+    </wire>
+    <wire>
+        <source.uri>EscrowDBProcess/EscrowHolderDBAdapter</source.uri>
+        <target.uri>EscrowHolderDBAdapter</target.uri>
+    </wire>
+    <wire>
+        <source.uri>EscrowDBProcess/EscrowAnalysisDBAdapter</source.uri>
+        <target.uri>EscrowAnalysisDBAdapter</target.uri>
+    </wire>
+
+</composite>

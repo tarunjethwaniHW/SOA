@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<adapter-config name="EscrowAccountDB"
+                adapter="db"
+                wsdlLocation="EscrowAccountDB.wsdl"
+                xmlns="http://platform.integration.oracle/blocks/adapter/fw/metadata">
+
+    <!-- ================================================================== -->
+    <!-- Database Adapter - Escrow Applications                               -->
+    <!-- Provides CRUD operations for ESCROW_ACCOUNTS table               -->
+    <!-- Connection: eis/DB/EscrowServicingDS                                      -->
+    <!-- ================================================================== -->
+
+    <connection-factory location="eis/DB/EscrowServicingDS"
+                        UIConnectionName="EscrowServicingDS"
+                        adapterRef=""/>
+
+    <!-- Insert Escrow Application -->
+    <endpoint-interaction portType="EscrowAccountDB_ptt" operation="insertEscrowAccount">
+        <interaction-spec className="oracle.tip.adapter.db.DBWriteInteractionSpec">
+            <property name="DescriptorName" value="EscrowAccountDB.EscrowAccount"/>
+            <property name="DmlType" value="INSERT"/>
+            <property name="MappingsMetaDataURL" value="EscrowAccountDB-or-mappings.xml"/>
+            <property name="GetActiveUnitOfWork" value="false"/>
+        </interaction-spec>
+    </endpoint-interaction>
+
+    <!-- Update Escrow Application -->
+    <endpoint-interaction portType="EscrowAccountDB_ptt" operation="updateEscrowAccount">
+        <interaction-spec className="oracle.tip.adapter.db.DBWriteInteractionSpec">
+            <property name="DescriptorName" value="EscrowAccountDB.EscrowAccount"/>
+            <property name="DmlType" value="UPDATE"/>
+            <property name="MappingsMetaDataURL" value="EscrowAccountDB-or-mappings.xml"/>
+            <property name="DetectOmissions" value="true"/>
+            <property name="GetActiveUnitOfWork" value="false"/>
+        </interaction-spec>
+    </endpoint-interaction>
+
+    <!-- Select Escrow by ID -->
+    <endpoint-interaction portType="EscrowAccountDB_ptt" operation="selectEscrowAccountById">
+        <interaction-spec className="oracle.tip.adapter.db.DBReadInteractionSpec">
+            <property name="DescriptorName" value="EscrowAccountDB.EscrowAccount"/>
+            <property name="QueryObjectName" value="selectEscrowAccountById"/>
+            <property name="MappingsMetaDataURL" value="EscrowAccountDB-or-mappings.xml"/>
+            <property name="GetActiveUnitOfWork" value="false"/>
+            <property name="MaxTransactionSize" value="100"/>
+        </interaction-spec>
+    </endpoint-interaction>
+
+    <!-- Stored Procedure: Calculate shortage Ratio -->
+    <endpoint-interaction portType="EscrowAccountDB_ptt" operation="calculateShortage">
+        <interaction-spec className="oracle.tip.adapter.db.DBStoredProcedureInteractionSpec">
+            <property name="SchemaName" value="ESCROWSVC"/>
+            <property name="PackageName" value="ESCROW_PKG"/>
+            <property name="ProcedureName" value="CALCULATE_SHORTAGE"/>
+            <property name="GetActiveUnitOfWork" value="false"/>
+        </interaction-spec>
+    </endpoint-interaction>
+
+</adapter-config>

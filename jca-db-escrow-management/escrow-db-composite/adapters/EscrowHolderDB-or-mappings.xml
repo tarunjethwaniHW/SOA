@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<toplink:object-persistence version="Oracle TopLink - 12c (12.2.1.4)"
+    xmlns:opm="http://xmlns.oracle.com/ias/xsds/opm"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:toplink="http://xmlns.oracle.com/ias/xsds/toplink"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+    <toplink:name>EscrowHolderDB</toplink:name>
+
+    <toplink:class-mapping-descriptors>
+        <!-- ================================================================== -->
+        <!-- EscrowHolder Entity Mapping                                             -->
+        <!-- DescriptorName: EscrowHolderDB.EscrowHolder → Table: ESCROW_ACCOUNT_HOLDERS              -->
+        <!-- ================================================================== -->
+        <toplink:class-mapping-descriptor xsi:type="toplink:relational-class-mapping-descriptor">
+            <toplink:class>EscrowHolderDB.EscrowHolder</toplink:class>
+            <toplink:alias>EscrowHolder</toplink:alias>
+            <toplink:primary-key>
+                <toplink:field table="ESCROW_ACCOUNT_HOLDERS" name="HOLDER_ID" xsi:type="toplink:column"/>
+            </toplink:primary-key>
+
+            <toplink:events/>
+            <toplink:querying/>
+
+            <toplink:tables>
+                <toplink:table name="ESCROW_ACCOUNT_HOLDERS"/>
+            </toplink:tables>
+
+            <toplink:attribute-mappings>
+                <toplink:attribute-mapping xsi:type="toplink:direct-mapping">
+                    <toplink:attribute-name>holderId</toplink:attribute-name>
+                    <toplink:field table="ESCROW_ACCOUNT_HOLDERS" name="HOLDER_ID" xsi:type="toplink:column"/>
+                </toplink:attribute-mapping>
+
+                <toplink:attribute-mapping xsi:type="toplink:direct-mapping">
+                    <toplink:attribute-name>taxId</toplink:attribute-name>
+                    <toplink:field table="ESCROW_ACCOUNT_HOLDERS" name="TAX_ID" xsi:type="toplink:column"/>
+                </toplink:attribute-mapping>
+
+                <toplink:attribute-mapping xsi:type="toplink:direct-mapping">
+                    <toplink:attribute-name>name</toplink:attribute-name>
+                    <toplink:field table="ESCROW_ACCOUNT_HOLDERS" name="HOLDER_NAME" xsi:type="toplink:column"/>
+                </toplink:attribute-mapping>
+
+                <toplink:attribute-mapping xsi:type="toplink:direct-mapping">
+                    <toplink:attribute-name>paymentScore</toplink:attribute-name>
+                    <toplink:field table="ESCROW_ACCOUNT_HOLDERS" name="PAYMENT_SCORE" xsi:type="toplink:column"/>
+                </toplink:attribute-mapping>
+
+                <toplink:attribute-mapping xsi:type="toplink:direct-mapping">
+                    <toplink:attribute-name>monthlyEscrowPayment</toplink:attribute-name>
+                    <toplink:field table="ESCROW_ACCOUNT_HOLDERS" name="MONTHLY_ESCROW_PAYMENT" xsi:type="toplink:column"/>
+                </toplink:attribute-mapping>
+
+                <toplink:attribute-mapping xsi:type="toplink:direct-mapping">
+                    <toplink:attribute-name>createdAt</toplink:attribute-name>
+                    <toplink:field table="ESCROW_ACCOUNT_HOLDERS" name="CREATED_AT" xsi:type="toplink:column"/>
+                </toplink:attribute-mapping>
+
+                <toplink:attribute-mapping xsi:type="toplink:direct-mapping">
+                    <toplink:attribute-name>updatedAt</toplink:attribute-name>
+                    <toplink:field table="ESCROW_ACCOUNT_HOLDERS" name="UPDATED_AT" xsi:type="toplink:column"/>
+                </toplink:attribute-mapping>
+            </toplink:attribute-mappings>
+
+            <toplink:descriptor-type>independent</toplink:descriptor-type>
+            <toplink:instantiation/>
+            <toplink:copying/>
+            <toplink:change-policy/>
+            <toplink:tables>
+                <toplink:table name="ESCROW_ACCOUNT_HOLDERS"/>
+            </toplink:tables>
+        </toplink:class-mapping-descriptor>
+    </toplink:class-mapping-descriptors>
+
+    <!-- ================================================================== -->
+    <!-- Named Queries for Read Operations                                   -->
+    <!-- ================================================================== -->
+    <toplink:queries>
+        <toplink:query name="selectByTaxId" xsi:type="toplink:read-object-query">
+            <toplink:reference-class>EscrowHolderDB.EscrowHolder</toplink:reference-class>
+            <toplink:selection-criteria xsi:type="toplink:expression">
+                <toplink:arguments>
+                    <toplink:argument name="taxId" type="java.lang.String"/>
+                </toplink:arguments>
+                <toplink:expression operator="equal">
+                    <toplink:left xsi:type="toplink:field-expression">
+                        <toplink:field table="ESCROW_ACCOUNT_HOLDERS" name="TAX_ID"/>
+                    </toplink:left>
+                    <toplink:right xsi:type="toplink:parameter-expression">
+                        <toplink:parameter name="taxId"/>
+                    </toplink:right>
+                </toplink:expression>
+            </toplink:selection-criteria>
+        </toplink:query>
+    </toplink:queries>
+
+</toplink:object-persistence>

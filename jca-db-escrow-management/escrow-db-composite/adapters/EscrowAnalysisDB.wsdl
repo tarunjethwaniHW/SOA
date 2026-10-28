@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:definitions name="EscrowAnalysisDB"
+                  targetNamespace="http://xmlns.oracle.com/EscrowServicing/adapter/db/EscrowAnalysisDB"
+                  xmlns:tns="http://xmlns.oracle.com/EscrowServicing/adapter/db/EscrowAnalysisDB"
+                  xmlns:types="http://xmlns.oracle.com/EscrowServicing/EscrowDBProcess/types"
+                  xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+                  xmlns:jca="http://xmlns.oracle.com/pcbpel/wsdl/jca/"
+                  xmlns:plnk="http://docs.oasis-open.org/wsbpel/2.0/plnktype">
+
+    <!-- Import XSD Types -->
+    <wsdl:types>
+        <xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+            <xsd:import namespace="http://xmlns.oracle.com/EscrowServicing/EscrowDBProcess/types"
+                        schemaLocation="../EscrowDBTypes.xsd"/>
+        </xsd:schema>
+    </wsdl:types>
+
+    <!-- Messages for DB Operations -->
+    <wsdl:message name="EscrowAnalysisCollectionMessage">
+        <wsdl:part name="EscrowAnalysisCollection" element="types:EscrowAnalysisCollection"/>
+    </wsdl:message>
+    <wsdl:message name="EscrowAnalysisSelectByAccountMessage">
+        <wsdl:part name="escrowAccountId" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema"/>
+    </wsdl:message>
+    <wsdl:message name="EscrowAnalysisRunInputMessage">
+        <wsdl:part name="EscrowAnalysisRunInput" element="types:EscrowAnalysisRunInput"/>
+    </wsdl:message>
+    <wsdl:message name="EscrowAnalysisRunOutputMessage">
+        <wsdl:part name="EscrowAnalysisRunOutput" element="types:EscrowAnalysisRunOutput"/>
+    </wsdl:message>
+
+    <!-- PortType - Database Adapter Operations -->
+    <wsdl:portType name="EscrowAnalysisDB_ptt">
+        <wsdl:operation name="insertEscrowAnalysis">
+            <wsdl:documentation>
+                Insert new escrow analysisOutcome record.
+                JCA: oracle.tip.adapter.db.DBWriteInteractionSpec
+                DmlType: INSERT
+                DescriptorName: EscrowAnalysisDB.EscrowAnalysis
+            </wsdl:documentation>
+            <wsdl:input message="tns:EscrowAnalysisCollectionMessage"/>
+        </wsdl:operation>
+
+        <wsdl:operation name="selectEscrowAnalysisByAccount">
+            <wsdl:documentation>
+                Select analysisOutcome by escrow ID.
+                JCA: oracle.tip.adapter.db.DBReadInteractionSpec
+                QueryObjectName: selectByEscrowAccountId
+                DescriptorName: EscrowAnalysisDB.EscrowAnalysis
+            </wsdl:documentation>
+            <wsdl:input message="tns:EscrowAnalysisSelectByAccountMessage"/>
+            <wsdl:output message="tns:EscrowAnalysisCollectionMessage"/>
+        </wsdl:operation>
+
+        <wsdl:operation name="runEscrowAnalysis">
+            <wsdl:documentation>
+                Run automated analysis assessment.
+                JCA: oracle.tip.adapter.db.DBStoredProcedureInteractionSpec
+                Schema: ESCROWSVC
+                Package: ANALYSIS_PKG
+                Procedure: RUN_ESCROW_ANALYSIS
+            </wsdl:documentation>
+            <wsdl:input message="tns:EscrowAnalysisRunInputMessage"/>
+            <wsdl:output message="tns:EscrowAnalysisRunOutputMessage"/>
+        </wsdl:operation>
+    </wsdl:portType>
+
+    <!-- JCA Binding -->
+    <wsdl:binding name="EscrowAnalysisDB_binding" type="tns:EscrowAnalysisDB_ptt">
+        <jca:binding/>
+        <wsdl:operation name="insertEscrowAnalysis">
+            <jca:operation/>
+            <wsdl:input/>
+        </wsdl:operation>
+        <wsdl:operation name="selectEscrowAnalysisByAccount">
+            <jca:operation/>
+            <wsdl:input/>
+            <wsdl:output/>
+        </wsdl:operation>
+        <wsdl:operation name="runEscrowAnalysis">
+            <jca:operation/>
+            <wsdl:input/>
+            <wsdl:output/>
+        </wsdl:operation>
+    </wsdl:binding>
+
+    <!-- Service -->
+    <wsdl:service name="EscrowAnalysisDB_service">
+        <wsdl:port name="EscrowAnalysisDB_pt" binding="tns:EscrowAnalysisDB_binding">
+            <jca:address location="eis/DB/EscrowServicingDS"/>
+        </wsdl:port>
+    </wsdl:service>
+
+    <!-- Partner Link Type -->
+    <plnk:partnerLinkType name="EscrowAnalysisDB_plt">
+        <plnk:role name="EscrowAnalysisDBProvider" portType="tns:EscrowAnalysisDB_ptt"/>
+    </plnk:partnerLinkType>
+
+</wsdl:definitions>

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schema attributeFormDefault="unqualified"
+        elementFormDefault="qualified"
+        targetNamespace="http://xmlns.oracle.com/pcbpel/adapter/jms/PaymentServicing/types"
+        xmlns:tns="http://xmlns.oracle.com/pcbpel/adapter/jms/PaymentServicing/types"
+        xmlns="http://www.w3.org/2001/XMLSchema">
+
+    <!-- Mortgage Payment Request -->
+    <element name="PaymentRequest">
+        <complexType>
+            <sequence>
+                <element name="transactionId" type="string"/>
+                <element name="accountNumber" type="string"/>
+                <element name="borrowerName" type="string"/>
+                <element name="paymentAmount" type="double"/>
+                <element name="accountBalance" type="double"/>
+            </sequence>
+        </complexType>
+    </element>
+
+    <!-- Payment Verification Request -->
+    <element name="VerificationRequest">
+        <complexType>
+            <sequence>
+                <element name="transactionId" type="string"/>
+                <element name="accountNumber" type="string"/>
+                <element name="accountBalance" type="double"/>
+            </sequence>
+        </complexType>
+    </element>
+
+    <!-- Payment Verification Response -->
+    <element name="VerificationResponse">
+        <complexType>
+            <sequence>
+                <element name="transactionId" type="string"/>
+                <element name="verificationScore" type="int"/>
+                <element name="fraudRiskRating" type="string"/>
+            </sequence>
+        </complexType>
+    </element>
+
+    <!-- Final Mortgage Payment Response -->
+    <element name="PaymentResponse">
+        <complexType>
+            <sequence>
+                <element name="transactionId" type="string"/>
+                <element name="borrowerName" type="string"/>
+                <element name="status" type="string"/>
+                <element name="lateFeeRate" type="double"/>
+                <element name="approvedAmount" type="double"/>
+                <element name="remarks" type="string"/>
+            </sequence>
+        </complexType>
+    </element>
+
+</schema>

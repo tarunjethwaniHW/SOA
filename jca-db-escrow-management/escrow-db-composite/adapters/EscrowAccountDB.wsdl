@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:definitions name="EscrowAccountDB"
+                  targetNamespace="http://xmlns.oracle.com/EscrowServicing/adapter/db/EscrowAccountDB"
+                  xmlns:tns="http://xmlns.oracle.com/EscrowServicing/adapter/db/EscrowAccountDB"
+                  xmlns:types="http://xmlns.oracle.com/EscrowServicing/EscrowDBProcess/types"
+                  xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+                  xmlns:jca="http://xmlns.oracle.com/pcbpel/wsdl/jca/"
+                  xmlns:plnk="http://docs.oasis-open.org/wsbpel/2.0/plnktype">
+
+    <!-- Import XSD Types -->
+    <wsdl:types>
+        <xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+            <xsd:import namespace="http://xmlns.oracle.com/EscrowServicing/EscrowDBProcess/types"
+                        schemaLocation="../EscrowDBTypes.xsd"/>
+        </xsd:schema>
+    </wsdl:types>
+
+    <!-- Messages for DB Operations -->
+    <wsdl:message name="EscrowAccountCollectionMessage">
+        <wsdl:part name="EscrowAccountCollection" element="types:EscrowAccountCollection"/>
+    </wsdl:message>
+    <wsdl:message name="EscrowAccountSelectByIdMessage">
+        <wsdl:part name="escrowAccountId" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema"/>
+    </wsdl:message>
+    <wsdl:message name="CalculateShortageInputMessage">
+        <wsdl:part name="CalculateShortageInput" element="types:CalculateShortageInput"/>
+    </wsdl:message>
+    <wsdl:message name="CalculateShortageOutputMessage">
+        <wsdl:part name="CalculateShortageOutput" element="types:CalculateShortageOutput"/>
+    </wsdl:message>
+
+    <!-- PortType - Database Adapter Operations -->
+    <wsdl:portType name="EscrowAccountDB_ptt">
+        <wsdl:operation name="insertEscrowAccount">
+            <wsdl:documentation>
+                Insert new escrow application record.
+                JCA: oracle.tip.adapter.db.DBWriteInteractionSpec
+                DmlType: INSERT
+                DescriptorName: EscrowAccountDB.EscrowAccount
+            </wsdl:documentation>
+            <wsdl:input message="tns:EscrowAccountCollectionMessage"/>
+        </wsdl:operation>
+
+        <wsdl:operation name="updateEscrowAccount">
+            <wsdl:documentation>
+                Update existing escrow application record.
+                JCA: oracle.tip.adapter.db.DBWriteInteractionSpec
+                DmlType: UPDATE
+                DescriptorName: EscrowAccountDB.EscrowAccount
+            </wsdl:documentation>
+            <wsdl:input message="tns:EscrowAccountCollectionMessage"/>
+        </wsdl:operation>
+
+        <wsdl:operation name="selectEscrowAccountById">
+            <wsdl:documentation>
+                Select escrow application by ID.
+                JCA: oracle.tip.adapter.db.DBReadInteractionSpec
+                QueryObjectName: selectEscrowAccountById
+                DescriptorName: EscrowAccountDB.EscrowAccount
+            </wsdl:documentation>
+            <wsdl:input message="tns:EscrowAccountSelectByIdMessage"/>
+            <wsdl:output message="tns:EscrowAccountCollectionMessage"/>
+        </wsdl:operation>
+
+        <wsdl:operation name="calculateShortage">
+            <wsdl:documentation>
+                Calculate Escrow-to-Value ratio.
+                JCA: oracle.tip.adapter.db.DBStoredProcedureInteractionSpec
+                Schema: ESCROWSVC
+                Package: ESCROW_PKG
+                Procedure: CALCULATE_SHORTAGE
+            </wsdl:documentation>
+            <wsdl:input message="tns:CalculateShortageInputMessage"/>
+            <wsdl:output message="tns:CalculateShortageOutputMessage"/>
+        </wsdl:operation>
+    </wsdl:portType>
+
+    <!-- JCA Binding -->
+    <wsdl:binding name="EscrowAccountDB_binding" type="tns:EscrowAccountDB_ptt">
+        <jca:binding/>
+        <wsdl:operation name="insertEscrowAccount">
+            <jca:operation/>
+            <wsdl:input/>
+        </wsdl:operation>
+        <wsdl:operation name="updateEscrowAccount">
+            <jca:operation/>
+            <wsdl:input/>
+        </wsdl:operation>
+        <wsdl:operation name="selectEscrowAccountById">
+            <jca:operation/>
+            <wsdl:input/>
+            <wsdl:output/>
+        </wsdl:operation>
+        <wsdl:operation name="calculateShortage">
+            <jca:operation/>
+            <wsdl:input/>
+            <wsdl:output/>
+        </wsdl:operation>
+    </wsdl:binding>
+
+    <!-- Service -->
+    <wsdl:service name="EscrowAccountDB_service">
+        <wsdl:port name="EscrowAccountDB_pt" binding="tns:EscrowAccountDB_binding">
+            <jca:address location="eis/DB/EscrowServicingDS"/>
+        </wsdl:port>
+    </wsdl:service>
+
+    <!-- Partner Link Type -->
+    <plnk:partnerLinkType name="EscrowAccountDB_plt">
+        <plnk:role name="EscrowAccountDBProvider" portType="tns:EscrowAccountDB_ptt"/>
+    </plnk:partnerLinkType>
+
+</wsdl:definitions>

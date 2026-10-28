@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:definitions name="EscrowDBProcess"
+                  targetNamespace="http://xmlns.oracle.com/EscrowServicing/EscrowDBProcess"
+                  xmlns:tns="http://xmlns.oracle.com/EscrowServicing/EscrowDBProcess"
+                  xmlns:types="http://xmlns.oracle.com/EscrowServicing/EscrowDBProcess/types"
+                  xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+                  xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+                  xmlns:plnk="http://docs.oasis-open.org/wsbpel/2.0/plnktype">
+
+    <!-- Import XSD Types -->
+    <wsdl:types>
+        <xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+            <xsd:import namespace="http://xmlns.oracle.com/EscrowServicing/EscrowDBProcess/types"
+                        schemaLocation="EscrowDBTypes.xsd"/>
+        </xsd:schema>
+    </wsdl:types>
+
+    <!-- Messages -->
+    <wsdl:message name="EscrowAccountRequestMessage">
+        <wsdl:part name="payload" element="types:EscrowAccountRequest"/>
+    </wsdl:message>
+    <wsdl:message name="EscrowAccountResponseMessage">
+        <wsdl:part name="payload" element="types:EscrowAccountResponse"/>
+    </wsdl:message>
+    <wsdl:message name="EscrowStatusRequestMessage">
+        <wsdl:part name="payload" element="types:EscrowStatusRequest"/>
+    </wsdl:message>
+    <wsdl:message name="EscrowStatusResponseMessage">
+        <wsdl:part name="payload" element="types:EscrowStatusResponse"/>
+    </wsdl:message>
+    <wsdl:message name="UpdateEscrowAnalysisRequestMessage">
+        <wsdl:part name="payload" element="types:UpdateEscrowAnalysisRequest"/>
+    </wsdl:message>
+    <wsdl:message name="UpdateEscrowAnalysisResponseMessage">
+        <wsdl:part name="payload" element="types:UpdateEscrowAnalysisResponse"/>
+    </wsdl:message>
+    <wsdl:message name="EscrowDBFaultMessage">
+        <wsdl:part name="fault" element="types:EscrowFaultDetail"/>
+    </wsdl:message>
+
+    <!-- PortType - Service Operations -->
+    <wsdl:portType name="EscrowDBProcess">
+        <wsdl:operation name="submitEscrowAccount">
+            <wsdl:documentation>
+                Submit a new escrow application. Triggers BPEL orchestration that:
+                1. Inserts escrow holder (EscrowHolderDB.insertEscrowHolder)
+                2. Inserts escrow application (EscrowAccountDB.insertEscrowAccount)
+                3. Calculates shortage (EscrowAccountDB.calculateShortage - stored procedure)
+                4. Runs analysis assessment (EscrowAnalysisDB.runEscrowAnalysis - stored procedure)
+                5. Inserts analysisOutcome (EscrowAnalysisDB.insertEscrowAnalysis)
+            </wsdl:documentation>
+            <wsdl:input message="tns:EscrowAccountRequestMessage"/>
+            <wsdl:output message="tns:EscrowAccountResponseMessage"/>
+            <wsdl:fault name="escrowDBFault" message="tns:EscrowDBFaultMessage"/>
+        </wsdl:operation>
+
+        <wsdl:operation name="getEscrowStatus">
+            <wsdl:documentation>
+                Get escrow status by ID. Triggers BPEL orchestration that:
+                1. Selects escrow by ID (EscrowAccountDB.selectEscrowAccountById)
+                2. Selects analysisOutcome by escrow (EscrowAnalysisDB.selectEscrowAnalysisByAccount)
+            </wsdl:documentation>
+            <wsdl:input message="tns:EscrowStatusRequestMessage"/>
+            <wsdl:output message="tns:EscrowStatusResponseMessage"/>
+            <wsdl:fault name="escrowDBFault" message="tns:EscrowDBFaultMessage"/>
+        </wsdl:operation>
+
+        <wsdl:operation name="updateEscrowAnalysis">
+            <wsdl:documentation>
+                Update escrow analysisOutcome (for manual review). Triggers BPEL orchestration that:
+                1. Updates escrow application (EscrowAccountDB.updateEscrowAccount)
+                2. Inserts new analysisOutcome (EscrowAnalysisDB.insertEscrowAnalysis)
+            </wsdl:documentation>
+            <wsdl:input message="tns:UpdateEscrowAnalysisRequestMessage"/>
+            <wsdl:output message="tns:UpdateEscrowAnalysisResponseMessage"/>
+            <wsdl:fault name="escrowDBFault" message="tns:EscrowDBFaultMessage"/>
+        </wsdl:operation>
+    </wsdl:portType>
+
+    <!-- SOAP Binding -->
+    <wsdl:binding name="EscrowDBProcessBinding" type="tns:EscrowDBProcess">
+        <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+
+        <wsdl:operation name="submitEscrowAccount">
+            <soap:operation soapAction="submitEscrowAccount"/>
+            <wsdl:input>
+                <soap:body use="literal"/>
+            </wsdl:input>
+            <wsdl:output>
+                <soap:body use="literal"/>
+            </wsdl:output>
+            <wsdl:fault name="escrowDBFault">
+                <soap:fault name="escrowDBFault" use="literal"/>
+            </wsdl:fault>
+        </wsdl:operation>
+
+        <wsdl:operation name="getEscrowStatus">
+            <soap:operation soapAction="getEscrowStatus"/>
+            <wsdl:input>
+                <soap:body use="literal"/>
+            </wsdl:input>
+            <wsdl:output>
+                <soap:body use="literal"/>
+            </wsdl:output>
+            <wsdl:fault name="escrowDBFault">
+                <soap:fault name="escrowDBFault" use="literal"/>
+            </wsdl:fault>
+        </wsdl:operation>
+
+        <wsdl:operation name="updateEscrowAnalysis">
+            <soap:operation soapAction="updateEscrowAnalysis"/>
+            <wsdl:input>
+                <soap:body use="literal"/>
+            </wsdl:input>
+            <wsdl:output>
+                <soap:body use="literal"/>
+            </wsdl:output>
+            <wsdl:fault name="escrowDBFault">
+                <soap:fault name="escrowDBFault" use="literal"/>
+            </wsdl:fault>
+        </wsdl:operation>
+    </wsdl:binding>
+
+    <!-- Service Endpoint -->
+    <wsdl:service name="escrowdb_client_ep">
+        <wsdl:port name="EscrowDBProcess_pt" binding="tns:EscrowDBProcessBinding">
+            <soap:address location="http://localhost:11081/soap/EscrowDBProcess"/>
+        </wsdl:port>
+    </wsdl:service>
+
+    <!-- Partner Link Types for BPEL -->
+    <plnk:partnerLinkType name="EscrowDBProcessPLT">
+        <plnk:role name="EscrowDBProcessProvider" portType="tns:EscrowDBProcess"/>
+    </plnk:partnerLinkType>
+
+</wsdl:definitions>

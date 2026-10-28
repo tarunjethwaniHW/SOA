@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<adapter-config name="EscrowHolderDB"
+                adapter="db"
+                wsdlLocation="EscrowHolderDB.wsdl"
+                xmlns="http://platform.integration.oracle/blocks/adapter/fw/metadata">
+
+    <!-- ================================================================== -->
+    <!-- Database Adapter - EscrowHolder Information                            -->
+    <!-- Provides CRUD operations for ESCROW_ACCOUNT_HOLDERS table                       -->
+    <!-- Connection: eis/DB/EscrowServicingDS                                      -->
+    <!-- ================================================================== -->
+
+    <connection-factory location="eis/DB/EscrowServicingDS"
+                        UIConnectionName="EscrowServicingDS"
+                        adapterRef=""/>
+
+    <!-- Insert EscrowHolder -->
+    <endpoint-interaction portType="EscrowHolderDB_ptt" operation="insertEscrowHolder">
+        <interaction-spec className="oracle.tip.adapter.db.DBWriteInteractionSpec">
+            <property name="DescriptorName" value="EscrowHolderDB.EscrowHolder"/>
+            <property name="DmlType" value="INSERT"/>
+            <property name="MappingsMetaDataURL" value="EscrowHolderDB-or-mappings.xml"/>
+            <property name="GetActiveUnitOfWork" value="false"/>
+        </interaction-spec>
+    </endpoint-interaction>
+
+    <!-- Select EscrowHolder by TAX_ID -->
+    <endpoint-interaction portType="EscrowHolderDB_ptt" operation="selectEscrowHolderByTaxId">
+        <interaction-spec className="oracle.tip.adapter.db.DBReadInteractionSpec">
+            <property name="DescriptorName" value="EscrowHolderDB.EscrowHolder"/>
+            <property name="QueryObjectName" value="selectByTaxId"/>
+            <property name="MappingsMetaDataURL" value="EscrowHolderDB-or-mappings.xml"/>
+            <property name="GetActiveUnitOfWork" value="false"/>
+            <property name="MaxTransactionSize" value="10"/>
+        </interaction-spec>
+    </endpoint-interaction>
+
+    <!-- Update EscrowHolder Payment standing Score -->
+    <endpoint-interaction portType="EscrowHolderDB_ptt" operation="updateEscrowHolderPaymentStanding">
+        <interaction-spec className="oracle.tip.adapter.db.DBWriteInteractionSpec">
+            <property name="DescriptorName" value="EscrowHolderDB.EscrowHolder"/>
+            <property name="DmlType" value="UPDATE"/>
+            <property name="MappingsMetaDataURL" value="EscrowHolderDB-or-mappings.xml"/>
+            <property name="DetectOmissions" value="true"/>
+            <property name="GetActiveUnitOfWork" value="false"/>
+        </interaction-spec>
+    </endpoint-interaction>
+
+</adapter-config>

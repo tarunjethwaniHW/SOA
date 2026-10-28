@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+            targetNamespace="http://xmlns.oracle.com/EscrowServicing/EscrowDBProcess/types"
+            xmlns:tns="http://xmlns.oracle.com/EscrowServicing/EscrowDBProcess/types"
+            elementFormDefault="qualified">
+
+    <!-- Request/Response Elements -->
+
+    <xsd:element name="EscrowAccountRequest" type="tns:EscrowAccountRequestType"/>
+    <xsd:element name="EscrowAccountResponse" type="tns:EscrowAccountResponseType"/>
+    <xsd:element name="EscrowStatusRequest" type="tns:EscrowStatusRequestType"/>
+    <xsd:element name="EscrowStatusResponse" type="tns:EscrowStatusResponseType"/>
+    <xsd:element name="UpdateEscrowAnalysisRequest" type="tns:UpdateEscrowAnalysisRequestType"/>
+    <xsd:element name="UpdateEscrowAnalysisResponse" type="tns:UpdateEscrowAnalysisResponseType"/>
+    <xsd:element name="EscrowFaultDetail" type="tns:EscrowFaultDetailType"/>
+
+    <!-- Complex Types -->
+
+    <xsd:complexType name="EscrowAccountRequestType">
+        <xsd:sequence>
+            <xsd:element name="holderName" type="xsd:string"/>
+            <xsd:element name="taxId" type="xsd:string"/>
+            <xsd:element name="annualDisbursement" type="xsd:decimal"/>
+            <xsd:element name="escrowBalance" type="xsd:decimal"/>
+            <xsd:element name="monthlyEscrowPayment" type="xsd:decimal"/>
+            <xsd:element name="parcelAddress" type="xsd:string"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <xsd:complexType name="EscrowAccountResponseType">
+        <xsd:sequence>
+            <xsd:element name="escrowAccountId" type="xsd:string"/>
+            <xsd:element name="analysisOutcome" type="xsd:string"/>
+            <xsd:element name="shortageRatio" type="xsd:decimal"/>
+            <xsd:element name="analysisScore" type="xsd:int"/>
+            <xsd:element name="analysisNotes" type="xsd:string"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <xsd:complexType name="EscrowStatusRequestType">
+        <xsd:sequence>
+            <xsd:element name="escrowAccountId" type="xsd:string"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <xsd:complexType name="EscrowStatusResponseType">
+        <xsd:sequence>
+            <xsd:element name="status" type="xsd:string"/>
+            <xsd:element name="analysisOutcome" type="xsd:string"/>
+            <xsd:element name="lastUpdated" type="xsd:dateTime"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <xsd:complexType name="UpdateEscrowAnalysisRequestType">
+        <xsd:sequence>
+            <xsd:element name="escrowAccountId" type="xsd:string"/>
+            <xsd:element name="analysisOutcome" type="xsd:string"/>
+            <xsd:element name="reviewerNotes" type="xsd:string" minOccurs="0"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <xsd:complexType name="UpdateEscrowAnalysisResponseType">
+        <xsd:sequence>
+            <xsd:element name="status" type="xsd:string"/>
+            <xsd:element name="updatedAt" type="xsd:dateTime"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <xsd:complexType name="EscrowFaultDetailType">
+        <xsd:sequence>
+            <xsd:element name="errorCode" type="xsd:string"/>
+            <xsd:element name="errorMessage" type="xsd:string"/>
+            <xsd:element name="timestamp" type="xsd:dateTime"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <!-- Database Entity Types (for DB Adapter messages) -->
+
+    <xsd:element name="EscrowHolderCollection" type="tns:EscrowHolderCollectionType"/>
+    <xsd:complexType name="EscrowHolderCollectionType">
+        <xsd:sequence>
+            <xsd:element name="EscrowHolder" type="tns:EscrowHolderType" maxOccurs="unbounded"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <xsd:complexType name="EscrowHolderType">
+        <xsd:sequence>
+            <xsd:element name="holderId" type="xsd:long"/>
+            <xsd:element name="taxId" type="xsd:string"/>
+            <xsd:element name="name" type="xsd:string"/>
+            <xsd:element name="paymentScore" type="xsd:int" minOccurs="0"/>
+            <xsd:element name="monthlyEscrowPayment" type="xsd:decimal"/>
+            <xsd:element name="createdAt" type="xsd:dateTime" minOccurs="0"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <xsd:element name="EscrowAccountCollection" type="tns:EscrowAccountCollectionType"/>
+    <xsd:complexType name="EscrowAccountCollectionType">
+        <xsd:sequence>
+            <xsd:element name="EscrowAccount" type="tns:EscrowAccountType" maxOccurs="unbounded"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <xsd:complexType name="EscrowAccountType">
+        <xsd:sequence>
+            <xsd:element name="escrowAccountId" type="xsd:string"/>
+            <xsd:element name="holderId" type="xsd:long"/>
+            <xsd:element name="annualDisbursement" type="xsd:decimal"/>
+            <xsd:element name="escrowBalance" type="xsd:decimal"/>
+            <xsd:element name="parcelAddress" type="xsd:string"/>
+            <xsd:element name="shortageRatio" type="xsd:decimal" minOccurs="0"/>
+            <xsd:element name="status" type="xsd:string"/>
+            <xsd:element name="createdAt" type="xsd:dateTime" minOccurs="0"/>
+            <xsd:element name="updatedAt" type="xsd:dateTime" minOccurs="0"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <xsd:element name="EscrowAnalysisCollection" type="tns:EscrowAnalysisCollectionType"/>
+    <xsd:complexType name="EscrowAnalysisCollectionType">
+        <xsd:sequence>
+            <xsd:element name="EscrowAnalysis" type="tns:EscrowAnalysisType" maxOccurs="unbounded"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <xsd:complexType name="EscrowAnalysisType">
+        <xsd:sequence>
+            <xsd:element name="analysisId" type="xsd:string"/>
+            <xsd:element name="escrowAccountId" type="xsd:string"/>
+            <xsd:element name="analysisOutcome" type="xsd:string"/>
+            <xsd:element name="analysisScore" type="xsd:int"/>
+            <xsd:element name="notes" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="reviewedBy" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="createdAt" type="xsd:dateTime" minOccurs="0"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <!-- Stored Procedure Types -->
+
+    <xsd:element name="CalculateShortageInput" type="tns:CalculateShortageInputType"/>
+    <xsd:complexType name="CalculateShortageInputType">
+        <xsd:sequence>
+            <xsd:element name="annualDisbursement" type="xsd:decimal"/>
+            <xsd:element name="escrowBalance" type="xsd:decimal"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <xsd:element name="CalculateShortageOutput" type="tns:CalculateShortageOutputType"/>
+    <xsd:complexType name="CalculateShortageOutputType">
+        <xsd:sequence>
+            <xsd:element name="shortageRatio" type="xsd:decimal"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <xsd:element name="EscrowAnalysisRunInput" type="tns:EscrowAnalysisRunInputType"/>
+    <xsd:complexType name="EscrowAnalysisRunInputType">
+        <xsd:sequence>
+            <xsd:element name="escrowAccountId" type="xsd:string"/>
+            <xsd:element name="paymentScore" type="xsd:int"/>
+            <xsd:element name="shortageRatio" type="xsd:decimal"/>
+            <xsd:element name="monthlyEscrowPayment" type="xsd:decimal"/>
+            <xsd:element name="annualDisbursement" type="xsd:decimal"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <xsd:element name="EscrowAnalysisRunOutput" type="tns:EscrowAnalysisRunOutputType"/>
+    <xsd:complexType name="EscrowAnalysisRunOutputType">
+        <xsd:sequence>
+            <xsd:element name="analysisScore" type="xsd:int"/>
+            <xsd:element name="recommendation" type="xsd:string"/>
+            <xsd:element name="notes" type="xsd:string"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+</xsd:schema>

@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<composite name="PaymentQueueOrchestration"
+           revision="1.0"
+           label="2026-08-19"
+           mode="active"
+           state="on"
+           xmlns="http://xmlns.oracle.com/sca/1.0"
+           xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:wsp="http://schemas.xmlsoap.org/ws/2004/09/policy"
+           xmlns:orawsp="http://schemas.oracle.com/ws/2006/01/policy"
+           xmlns:ui="http://xmlns.oracle.com/soa/designer/"
+           xmlns:sca-ext="http://xmlns.oracle.com/sca/1.0-ext">
+
+   <import namespace="http://xmlns.oracle.com/pcbpel/adapter/jms/ConsumePaymentRequest"
+           location="ConsumePaymentRequest.wsdl" importType="wsdl"/>
+   <import namespace="http://xmlns.oracle.com/pcbpel/adapter/jms/ProduceVerificationCheck"
+           location="ProduceVerificationCheck.wsdl" importType="wsdl"/>
+   <import namespace="http://xmlns.oracle.com/pcbpel/adapter/jms/ConsumeVerificationResponse"
+           location="ConsumeVerificationResponse.wsdl" importType="wsdl"/>
+   <import namespace="http://xmlns.oracle.com/pcbpel/adapter/jms/ProducePaymentResponse"
+           location="ProducePaymentResponse.wsdl" importType="wsdl"/>
+
+   <!-- Inbound JMS Entry Point from Client -->
+   <service name="ConsumePaymentRequest" ui:wsdlLocation="ConsumePaymentRequest.wsdl">
+      <interface.wsdl interface="http://xmlns.oracle.com/pcbpel/adapter/jms/ConsumePaymentRequest#wsdl.interface(Consume_Message_ptt)"/>
+      <binding.jca config="ConsumePaymentRequest_jms.jca"/>
+   </service>
+
+   <!-- BPEL Orchestrator Component -->
+   <component name="PaymentQueueOrchestratorBpel" version="2.0">
+      <implementation.bpel src="PaymentQueueOrchestratorBpel.bpel"/>
+      <componentType>
+         <service name="ConsumePaymentRequest" ui:wsdlLocation="ConsumePaymentRequest.wsdl">
+            <interface.wsdl interface="http://xmlns.oracle.com/pcbpel/adapter/jms/ConsumePaymentRequest#wsdl.interface(Consume_Message_ptt)"/>
+         </service>
+         <reference name="ProduceVerificationCheck" ui:wsdlLocation="ProduceVerificationCheck.wsdl">
+            <interface.wsdl interface="http://xmlns.oracle.com/pcbpel/adapter/jms/ProduceVerificationCheck#wsdl.interface(Produce_Message_ptt)"/>
+         </reference>
+         <reference name="ConsumeVerificationResponse" ui:wsdlLocation="ConsumeVerificationResponse.wsdl">
+            <interface.wsdl interface="http://xmlns.oracle.com/pcbpel/adapter/jms/ConsumeVerificationResponse#wsdl.interface(Consume_Message_ptt)"/>
+         </reference>
+         <reference name="ProducePaymentResponse" ui:wsdlLocation="ProducePaymentResponse.wsdl">
+            <interface.wsdl interface="http://xmlns.oracle.com/pcbpel/adapter/jms/ProducePaymentResponse#wsdl.interface(Produce_Message_ptt)"/>
+         </reference>
+      </componentType>
+   </component>
+
+   <!-- Outbound Reference to Payment Verification Request Queue -->
+   <reference name="ProduceVerificationCheck" ui:wsdlLocation="ProduceVerificationCheck.wsdl">
+      <interface.wsdl interface="http://xmlns.oracle.com/pcbpel/adapter/jms/ProduceVerificationCheck#wsdl.interface(Produce_Message_ptt)"/>
+      <binding.jca config="ProduceVerificationCheck_jms.jca"/>
+   </reference>
+
+   <!-- Inbound Reference for Payment Verification Response Queue -->
+   <reference name="ConsumeVerificationResponse" ui:wsdlLocation="ConsumeVerificationResponse.wsdl">
+      <interface.wsdl interface="http://xmlns.oracle.com/pcbpel/adapter/jms/ConsumeVerificationResponse#wsdl.interface(Consume_Message_ptt)"/>
+      <binding.jca config="ConsumeVerificationResponse_jms.jca"/>
+   </reference>
+
+   <!-- Outbound Reference to Reply to Client Payment Response Queue -->
+   <reference name="ProducePaymentResponse" ui:wsdlLocation="ProducePaymentResponse.wsdl">
+      <interface.wsdl interface="http://xmlns.oracle.com/pcbpel/adapter/jms/ProducePaymentResponse#wsdl.interface(Produce_Message_ptt)"/>
+      <binding.jca config="ProducePaymentResponse_jms.jca"/>
+   </reference>
+
+   <!-- Wirings -->
+   <wire>
+      <source.uri>ConsumePaymentRequest</source.uri>
+      <target.uri>PaymentQueueOrchestratorBpel/ConsumePaymentRequest</target.uri>
+   </wire>
+   <wire>
+      <source.uri>PaymentQueueOrchestratorBpel/ProduceVerificationCheck</source.uri>
+      <target.uri>ProduceVerificationCheck</target.uri>
+   </wire>
+   <wire>
+      <source.uri>PaymentQueueOrchestratorBpel/ConsumeVerificationResponse</source.uri>
+      <target.uri>ConsumeVerificationResponse</target.uri>
+   </wire>
+   <wire>
+      <source.uri>PaymentQueueOrchestratorBpel/ProducePaymentResponse</source.uri>
+      <target.uri>ProducePaymentResponse</target.uri>
+   </wire>
+
+</composite>

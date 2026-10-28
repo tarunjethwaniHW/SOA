@@ -1,0 +1,527 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<process name="EscrowDBProcess"
+         targetNamespace="http://xmlns.oracle.com/EscrowServicing/EscrowDBProcess/bpel"
+         xmlns="http://docs.oasis-open.org/wsbpel/2.0/process/executable"
+         xmlns:bpws="http://docs.oasis-open.org/wsbpel/2.0/process/executable"
+         xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+         xmlns:bpelx="http://schemas.oracle.com/bpel/extension"
+         xmlns:ora="http://schemas.oracle.com/xpath/extension"
+         xmlns:tns="http://xmlns.oracle.com/EscrowServicing/EscrowDBProcess/bpel"
+         xmlns:client="http://xmlns.oracle.com/EscrowServicing/EscrowDBProcess"
+         xmlns:types="http://xmlns.oracle.com/EscrowServicing/EscrowDBProcess/types"
+         xmlns:escrowaccountdb="http://xmlns.oracle.com/EscrowServicing/adapter/db/EscrowAccountDB"
+         xmlns:escrowholderdb="http://xmlns.oracle.com/EscrowServicing/adapter/db/EscrowHolderDB"
+         xmlns:escrowanalysisdb="http://xmlns.oracle.com/EscrowServicing/adapter/db/EscrowAnalysisDB">
+
+    <!-- ================================================================== -->
+    <!-- BPEL Process - Escrow Database Operations                            -->
+    <!-- Orchestrates multiple Database Adapter invocations                 -->
+    <!-- ================================================================== -->
+
+    <!-- Partner Links -->
+    <partnerLinks>
+        <!-- Client Entry Point -->
+        <partnerLink name="EscrowDBClient"
+                     partnerLinkType="client:EscrowDBProcessPLT"
+                     myRole="EscrowDBProcessProvider"/>
+
+        <!-- Database Adapter Partner Links -->
+        <partnerLink name="EscrowAccountDBAdapter"
+                     partnerLinkType="escrowaccountdb:EscrowAccountDB_plt"
+                     partnerRole="EscrowAccountDBProvider"/>
+
+        <partnerLink name="EscrowHolderDBAdapter"
+                     partnerLinkType="escrowholderdb:EscrowHolderDB_plt"
+                     partnerRole="EscrowHolderDBProvider"/>
+
+        <partnerLink name="EscrowAnalysisDBAdapter"
+                     partnerLinkType="escrowanalysisdb:EscrowAnalysisDB_plt"
+                     partnerRole="EscrowAnalysisDBProvider"/>
+    </partnerLinks>
+
+    <!-- Variables -->
+    <variables>
+        <!-- Client Request/Response -->
+        <variable name="inputVariable" messageType="client:EscrowAccountRequestMessage"/>
+        <variable name="outputVariable" messageType="client:EscrowAccountResponseMessage"/>
+        <variable name="statusInputVariable" messageType="client:EscrowStatusRequestMessage"/>
+        <variable name="statusOutputVariable" messageType="client:EscrowStatusResponseMessage"/>
+        <variable name="updateInputVariable" messageType="client:UpdateEscrowAnalysisRequestMessage"/>
+        <variable name="updateOutputVariable" messageType="client:UpdateEscrowAnalysisResponseMessage"/>
+        <variable name="faultVariable" messageType="client:EscrowDBFaultMessage"/>
+
+        <!-- EscrowHolder DB Adapter Variables -->
+        <variable name="escrowHolderInsertRequest" messageType="escrowholderdb:EscrowHolderCollectionMessage"/>
+        <variable name="escrowHolderSelectRequest" messageType="escrowholderdb:EscrowHolderSelectByTaxIdMessage"/>
+        <variable name="escrowHolderSelectResponse" messageType="escrowholderdb:EscrowHolderCollectionMessage"/>
+
+        <!-- Escrow DB Adapter Variables -->
+        <variable name="escrowAccountInsertRequest" messageType="escrowaccountdb:EscrowAccountCollectionMessage"/>
+        <variable name="escrowAccountSelectRequest" messageType="escrowaccountdb:EscrowAccountSelectByIdMessage"/>
+        <variable name="escrowAccountSelectResponse" messageType="escrowaccountdb:EscrowAccountCollectionMessage"/>
+        <variable name="escrowAccountUpdateRequest" messageType="escrowaccountdb:EscrowAccountCollectionMessage"/>
+        <variable name="calculateShortageRequest" messageType="escrowaccountdb:CalculateShortageInputMessage"/>
+        <variable name="calculateShortageResponse" messageType="escrowaccountdb:CalculateShortageOutputMessage"/>
+
+        <!-- Escrow analysis DB Adapter Variables -->
+        <variable name="escrowAnalysisInsertRequest" messageType="escrowanalysisdb:EscrowAnalysisCollectionMessage"/>
+        <variable name="escrowAnalysisSelectRequest" messageType="escrowanalysisdb:EscrowAnalysisSelectByAccountMessage"/>
+        <variable name="escrowAnalysisSelectResponse" messageType="escrowanalysisdb:EscrowAnalysisCollectionMessage"/>
+        <variable name="escrowAnalysisRunRequest" messageType="escrowanalysisdb:EscrowAnalysisRunInputMessage"/>
+        <variable name="escrowAnalysisRunResponse" messageType="escrowanalysisdb:EscrowAnalysisRunOutputMessage"/>
+
+        <!-- Working Variables -->
+        <variable name="escrowAccountId" type="xsd:string"/>
+        <variable name="holderId" type="xsd:long"/>
+        <variable name="shortageRatio" type="xsd:decimal"/>
+        <variable name="analysisScore" type="xsd:int"/>
+        <variable name="analysisOutcome" type="xsd:string"/>
+    </variables>
+
+    <!-- Fault Handlers -->
+    <faultHandlers>
+        <catchAll>
+            <sequence name="HandleAllFaults">
+                <assign name="AssignFaultResponse">
+                    <copy>
+                        <from>'DB_ERROR'</from>
+                        <to>$faultVariable.fault/types:errorCode</to>
+                    </copy>
+                    <copy>
+                        <from>'Database operation failed'</from>
+                        <to>$faultVariable.fault/types:errorMessage</to>
+                    </copy>
+                    <copy>
+                        <from>ora:getCurrentDateTime()</from>
+                        <to>$faultVariable.fault/types:timestamp</to>
+                    </copy>
+                </assign>
+                <reply name="ReplyFault"
+                       partnerLink="EscrowDBClient"
+                       portType="client:EscrowDBProcess"
+                       operation="submitEscrowAccount"
+                       variable="faultVariable"
+                       faultName="client:escrowDBFault"/>
+            </sequence>
+        </catchAll>
+    </faultHandlers>
+
+    <!-- Main Sequence -->
+    <sequence name="MainSequence">
+
+        <!-- ============================================================== -->
+        <!-- Pick - Wait for one of three operations                        -->
+        <!-- ============================================================== -->
+
+        <pick name="PickOperation" createInstance="yes">
+
+            <!-- ========================================================== -->
+            <!-- Operation 1: submitEscrowAccount                         -->
+            <!-- ========================================================== -->
+            <onMessage partnerLink="EscrowDBClient"
+                       portType="client:EscrowDBProcess"
+                       operation="submitEscrowAccount"
+                       variable="inputVariable">
+                <sequence name="SubmitEscrowAccountSequence">
+
+                    <!-- Generate Escrow ID -->
+                    <assign name="GenerateEscrowAccountId">
+                        <copy>
+                            <from>ora:generateGUID()</from>
+                            <to variable="escrowAccountId"/>
+                        </copy>
+                    </assign>
+
+                    <!-- ================================================== -->
+                    <!-- Step 1: Insert EscrowHolder (EscrowHolderDB.insertEscrowHolder)-->
+                    <!-- ================================================== -->
+
+                    <assign name="PrepareEscrowHolderInsert">
+                        <copy>
+                            <from>ora:getNextSequenceValue('ESCROW_HOLDER_SEQ')</from>
+                            <to>$escrowHolderInsertRequest.EscrowHolderCollection/types:EscrowHolder/types:holderId</to>
+                        </copy>
+                        <copy>
+                            <from>$inputVariable.payload/types:taxId</from>
+                            <to>$escrowHolderInsertRequest.EscrowHolderCollection/types:EscrowHolder/types:taxId</to>
+                        </copy>
+                        <copy>
+                            <from>$inputVariable.payload/types:holderName</from>
+                            <to>$escrowHolderInsertRequest.EscrowHolderCollection/types:EscrowHolder/types:name</to>
+                        </copy>
+                        <copy>
+                            <from>$inputVariable.payload/types:monthlyEscrowPayment</from>
+                            <to>$escrowHolderInsertRequest.EscrowHolderCollection/types:EscrowHolder/types:monthlyEscrowPayment</to>
+                        </copy>
+                    </assign>
+
+                    <invoke name="InsertEscrowHolder"
+                            partnerLink="EscrowHolderDBAdapter"
+                            portType="escrowholderdb:EscrowHolderDB_ptt"
+                            operation="insertEscrowHolder"
+                            inputVariable="escrowHolderInsertRequest"/>
+
+                    <assign name="StoreEscrowHolderId">
+                        <copy>
+                            <from>$escrowHolderInsertRequest.EscrowHolderCollection/types:EscrowHolder/types:holderId</from>
+                            <to variable="holderId"/>
+                        </copy>
+                    </assign>
+
+                    <!-- ================================================== -->
+                    <!-- Step 2: Insert Escrow (EscrowAccountDB.insertEscrowAccount) -->
+                    <!-- ================================================== -->
+
+                    <assign name="PrepareEscrowAccountInsert">
+                        <copy>
+                            <from variable="escrowAccountId"/>
+                            <to>$escrowAccountInsertRequest.EscrowAccountCollection/types:EscrowAccount/types:escrowAccountId</to>
+                        </copy>
+                        <copy>
+                            <from variable="holderId"/>
+                            <to>$escrowAccountInsertRequest.EscrowAccountCollection/types:EscrowAccount/types:holderId</to>
+                        </copy>
+                        <copy>
+                            <from>$inputVariable.payload/types:annualDisbursement</from>
+                            <to>$escrowAccountInsertRequest.EscrowAccountCollection/types:EscrowAccount/types:annualDisbursement</to>
+                        </copy>
+                        <copy>
+                            <from>$inputVariable.payload/types:escrowBalance</from>
+                            <to>$escrowAccountInsertRequest.EscrowAccountCollection/types:EscrowAccount/types:escrowBalance</to>
+                        </copy>
+                        <copy>
+                            <from>$inputVariable.payload/types:parcelAddress</from>
+                            <to>$escrowAccountInsertRequest.EscrowAccountCollection/types:EscrowAccount/types:parcelAddress</to>
+                        </copy>
+                        <copy>
+                            <from>'PENDING'</from>
+                            <to>$escrowAccountInsertRequest.EscrowAccountCollection/types:EscrowAccount/types:status</to>
+                        </copy>
+                    </assign>
+
+                    <invoke name="InsertEscrowAccount"
+                            partnerLink="EscrowAccountDBAdapter"
+                            portType="escrowaccountdb:EscrowAccountDB_ptt"
+                            operation="insertEscrowAccount"
+                            inputVariable="escrowAccountInsertRequest"/>
+
+                    <!-- ================================================== -->
+                    <!-- Step 3: Calculate shortage (EscrowAccountDB.calculateShortage)        -->
+                    <!-- Stored Procedure: ESCROW_PKG.CALCULATE_SHORTAGE           -->
+                    <!-- ================================================== -->
+
+                    <assign name="PrepareCalculateShortage">
+                        <copy>
+                            <from>$inputVariable.payload/types:annualDisbursement</from>
+                            <to>$calculateShortageRequest.CalculateShortageInput/types:annualDisbursement</to>
+                        </copy>
+                        <copy>
+                            <from>$inputVariable.payload/types:escrowBalance</from>
+                            <to>$calculateShortageRequest.CalculateShortageInput/types:escrowBalance</to>
+                        </copy>
+                    </assign>
+
+                    <invoke name="CalculateShortage"
+                            partnerLink="EscrowAccountDBAdapter"
+                            portType="escrowaccountdb:EscrowAccountDB_ptt"
+                            operation="calculateShortage"
+                            inputVariable="calculateShortageRequest"
+                            outputVariable="calculateShortageResponse"/>
+
+                    <assign name="StoreShortageRatio">
+                        <copy>
+                            <from>$calculateShortageResponse.CalculateShortageOutput/types:shortageRatio</from>
+                            <to variable="shortageRatio"/>
+                        </copy>
+                    </assign>
+
+                    <!-- ================================================== -->
+                    <!-- Step 4: Run Analysis Assessment                         -->
+                    <!-- (EscrowAnalysisDB.runEscrowAnalysis)                      -->
+                    <!-- Stored Procedure: ANALYSIS_PKG.RUN_ESCROW_ANALYSIS -->
+                    <!-- ================================================== -->
+
+                    <assign name="PrepareEscrowAnalysisRun">
+                        <copy>
+                            <from variable="escrowAccountId"/>
+                            <to>$escrowAnalysisRunRequest.EscrowAnalysisRunInput/types:escrowAccountId</to>
+                        </copy>
+                        <copy>
+                            <from>number(720)</from> <!-- Default payment standing score for demo -->
+                            <to>$escrowAnalysisRunRequest.EscrowAnalysisRunInput/types:paymentScore</to>
+                        </copy>
+                        <copy>
+                            <from variable="shortageRatio"/>
+                            <to>$escrowAnalysisRunRequest.EscrowAnalysisRunInput/types:shortageRatio</to>
+                        </copy>
+                        <copy>
+                            <from>$inputVariable.payload/types:monthlyEscrowPayment</from>
+                            <to>$escrowAnalysisRunRequest.EscrowAnalysisRunInput/types:monthlyEscrowPayment</to>
+                        </copy>
+                        <copy>
+                            <from>$inputVariable.payload/types:annualDisbursement</from>
+                            <to>$escrowAnalysisRunRequest.EscrowAnalysisRunInput/types:annualDisbursement</to>
+                        </copy>
+                    </assign>
+
+                    <invoke name="RunEscrowAnalysis"
+                            partnerLink="EscrowAnalysisDBAdapter"
+                            portType="escrowanalysisdb:EscrowAnalysisDB_ptt"
+                            operation="runEscrowAnalysis"
+                            inputVariable="escrowAnalysisRunRequest"
+                            outputVariable="escrowAnalysisRunResponse"/>
+
+                    <assign name="StoreAnalysisScore">
+                        <copy>
+                            <from>$escrowAnalysisRunResponse.EscrowAnalysisRunOutput/types:analysisScore</from>
+                            <to variable="analysisScore"/>
+                        </copy>
+                        <copy>
+                            <from>$escrowAnalysisRunResponse.EscrowAnalysisRunOutput/types:recommendation</from>
+                            <to variable="analysisOutcome"/>
+                        </copy>
+                    </assign>
+
+                    <!-- ================================================== -->
+                    <!-- Step 5: Insert Escrow analysis                             -->
+                    <!-- (EscrowAnalysisDB.insertEscrowAnalysis)                         -->
+                    <!-- ================================================== -->
+
+                    <assign name="PrepareEscrowAnalysisInsert">
+                        <copy>
+                            <from>ora:generateGUID()</from>
+                            <to>$escrowAnalysisInsertRequest.EscrowAnalysisCollection/types:EscrowAnalysis/types:analysisId</to>
+                        </copy>
+                        <copy>
+                            <from variable="escrowAccountId"/>
+                            <to>$escrowAnalysisInsertRequest.EscrowAnalysisCollection/types:EscrowAnalysis/types:escrowAccountId</to>
+                        </copy>
+                        <copy>
+                            <from variable="analysisOutcome"/>
+                            <to>$escrowAnalysisInsertRequest.EscrowAnalysisCollection/types:EscrowAnalysis/types:analysisOutcome</to>
+                        </copy>
+                        <copy>
+                            <from variable="analysisScore"/>
+                            <to>$escrowAnalysisInsertRequest.EscrowAnalysisCollection/types:EscrowAnalysis/types:analysisScore</to>
+                        </copy>
+                        <copy>
+                            <from>$escrowAnalysisRunResponse.EscrowAnalysisRunOutput/types:notes</from>
+                            <to>$escrowAnalysisInsertRequest.EscrowAnalysisCollection/types:EscrowAnalysis/types:notes</to>
+                        </copy>
+                    </assign>
+
+                    <invoke name="InsertEscrowAnalysis"
+                            partnerLink="EscrowAnalysisDBAdapter"
+                            portType="escrowanalysisdb:EscrowAnalysisDB_ptt"
+                            operation="insertEscrowAnalysis"
+                            inputVariable="escrowAnalysisInsertRequest"/>
+
+                    <!-- ================================================== -->
+                    <!-- Step 6: Update Escrow Status                          -->
+                    <!-- (EscrowAccountDB.updateEscrowAccount)                      -->
+                    <!-- ================================================== -->
+
+                    <assign name="PrepareEscrowAccountUpdate">
+                        <copy>
+                            <from variable="escrowAccountId"/>
+                            <to>$escrowAccountUpdateRequest.EscrowAccountCollection/types:EscrowAccount/types:escrowAccountId</to>
+                        </copy>
+                        <copy>
+                            <from variable="shortageRatio"/>
+                            <to>$escrowAccountUpdateRequest.EscrowAccountCollection/types:EscrowAccount/types:shortageRatio</to>
+                        </copy>
+                        <copy>
+                            <from variable="analysisOutcome"/>
+                            <to>$escrowAccountUpdateRequest.EscrowAccountCollection/types:EscrowAccount/types:status</to>
+                        </copy>
+                    </assign>
+
+                    <invoke name="UpdateEscrowAccount"
+                            partnerLink="EscrowAccountDBAdapter"
+                            portType="escrowaccountdb:EscrowAccountDB_ptt"
+                            operation="updateEscrowAccount"
+                            inputVariable="escrowAccountUpdateRequest"/>
+
+                    <!-- ================================================== -->
+                    <!-- Prepare Response                                    -->
+                    <!-- ================================================== -->
+
+                    <assign name="PrepareResponse">
+                        <copy>
+                            <from variable="escrowAccountId"/>
+                            <to>$outputVariable.payload/types:escrowAccountId</to>
+                        </copy>
+                        <copy>
+                            <from variable="analysisOutcome"/>
+                            <to>$outputVariable.payload/types:analysisOutcome</to>
+                        </copy>
+                        <copy>
+                            <from variable="shortageRatio"/>
+                            <to>$outputVariable.payload/types:shortageRatio</to>
+                        </copy>
+                        <copy>
+                            <from variable="analysisScore"/>
+                            <to>$outputVariable.payload/types:analysisScore</to>
+                        </copy>
+                        <copy>
+                            <from>$escrowAnalysisRunResponse.EscrowAnalysisRunOutput/types:notes</from>
+                            <to>$outputVariable.payload/types:analysisNotes</to>
+                        </copy>
+                    </assign>
+
+                    <reply name="ReplyToClient"
+                           partnerLink="EscrowDBClient"
+                           portType="client:EscrowDBProcess"
+                           operation="submitEscrowAccount"
+                           variable="outputVariable"/>
+
+                </sequence>
+            </onMessage>
+
+            <!-- ========================================================== -->
+            <!-- Operation 2: getEscrowStatus                                 -->
+            <!-- ========================================================== -->
+            <onMessage partnerLink="EscrowDBClient"
+                       portType="client:EscrowDBProcess"
+                       operation="getEscrowStatus"
+                       variable="statusInputVariable">
+                <sequence name="GetStatusSequence">
+
+                    <!-- Select Escrow by ID (EscrowAccountDB.selectEscrowAccountById) -->
+                    <assign name="PrepareEscrowAccountSelect">
+                        <copy>
+                            <from>$statusInputVariable.payload/types:escrowAccountId</from>
+                            <to>$escrowAccountSelectRequest.escrowAccountId</to>
+                        </copy>
+                    </assign>
+
+                    <invoke name="SelectEscrowAccountById"
+                            partnerLink="EscrowAccountDBAdapter"
+                            portType="escrowaccountdb:EscrowAccountDB_ptt"
+                            operation="selectEscrowAccountById"
+                            inputVariable="escrowAccountSelectRequest"
+                            outputVariable="escrowAccountSelectResponse"/>
+
+                    <!-- Select Escrow analysis by Escrow (EscrowAnalysisDB.selectEscrowAnalysisByAccount) -->
+                    <assign name="PrepareEscrowAnalysisSelect">
+                        <copy>
+                            <from>$statusInputVariable.payload/types:escrowAccountId</from>
+                            <to>$escrowAnalysisSelectRequest.escrowAccountId</to>
+                        </copy>
+                    </assign>
+
+                    <invoke name="SelectEscrowAnalysisByAccount"
+                            partnerLink="EscrowAnalysisDBAdapter"
+                            portType="escrowanalysisdb:EscrowAnalysisDB_ptt"
+                            operation="selectEscrowAnalysisByAccount"
+                            inputVariable="escrowAnalysisSelectRequest"
+                            outputVariable="escrowAnalysisSelectResponse"/>
+
+                    <!-- Prepare Status Response -->
+                    <assign name="PrepareStatusResponse">
+                        <copy>
+                            <from>$escrowAccountSelectResponse.EscrowAccountCollection/types:EscrowAccount/types:status</from>
+                            <to>$statusOutputVariable.payload/types:status</to>
+                        </copy>
+                        <copy>
+                            <from>$escrowAnalysisSelectResponse.EscrowAnalysisCollection/types:EscrowAnalysis/types:analysisOutcome</from>
+                            <to>$statusOutputVariable.payload/types:analysisOutcome</to>
+                        </copy>
+                        <copy>
+                            <from>$escrowAccountSelectResponse.EscrowAccountCollection/types:EscrowAccount/types:updatedAt</from>
+                            <to>$statusOutputVariable.payload/types:lastUpdated</to>
+                        </copy>
+                    </assign>
+
+                    <reply name="ReplyStatus"
+                           partnerLink="EscrowDBClient"
+                           portType="client:EscrowDBProcess"
+                           operation="getEscrowStatus"
+                           variable="statusOutputVariable"/>
+
+                </sequence>
+            </onMessage>
+
+            <!-- ========================================================== -->
+            <!-- Operation 3: updateEscrowAnalysis                            -->
+            <!-- ========================================================== -->
+            <onMessage partnerLink="EscrowDBClient"
+                       portType="client:EscrowDBProcess"
+                       operation="updateEscrowAnalysis"
+                       variable="updateInputVariable">
+                <sequence name="UpdateEscrowAnalysisSequence">
+
+                    <!-- Update Escrow Application (EscrowAccountDB.updateEscrowAccount) -->
+                    <assign name="PrepareUpdateEscrowAccount">
+                        <copy>
+                            <from>$updateInputVariable.payload/types:escrowAccountId</from>
+                            <to>$escrowAccountUpdateRequest.EscrowAccountCollection/types:EscrowAccount/types:escrowAccountId</to>
+                        </copy>
+                        <copy>
+                            <from>$updateInputVariable.payload/types:analysisOutcome</from>
+                            <to>$escrowAccountUpdateRequest.EscrowAccountCollection/types:EscrowAccount/types:status</to>
+                        </copy>
+                    </assign>
+
+                    <invoke name="UpdateEscrowAccount"
+                            partnerLink="EscrowAccountDBAdapter"
+                            portType="escrowaccountdb:EscrowAccountDB_ptt"
+                            operation="updateEscrowAccount"
+                            inputVariable="escrowAccountUpdateRequest"/>
+
+                    <!-- Insert New Escrow analysis (EscrowAnalysisDB.insertEscrowAnalysis) -->
+                    <assign name="PrepareNewEscrowAnalysis">
+                        <copy>
+                            <from>ora:generateGUID()</from>
+                            <to>$escrowAnalysisInsertRequest.EscrowAnalysisCollection/types:EscrowAnalysis/types:analysisId</to>
+                        </copy>
+                        <copy>
+                            <from>$updateInputVariable.payload/types:escrowAccountId</from>
+                            <to>$escrowAnalysisInsertRequest.EscrowAnalysisCollection/types:EscrowAnalysis/types:escrowAccountId</to>
+                        </copy>
+                        <copy>
+                            <from>$updateInputVariable.payload/types:analysisOutcome</from>
+                            <to>$escrowAnalysisInsertRequest.EscrowAnalysisCollection/types:EscrowAnalysis/types:analysisOutcome</to>
+                        </copy>
+                        <copy>
+                            <from>$updateInputVariable.payload/types:reviewerNotes</from>
+                            <to>$escrowAnalysisInsertRequest.EscrowAnalysisCollection/types:EscrowAnalysis/types:notes</to>
+                        </copy>
+                        <copy>
+                            <from>'MANUAL_REVIEWER'</from>
+                            <to>$escrowAnalysisInsertRequest.EscrowAnalysisCollection/types:EscrowAnalysis/types:reviewedBy</to>
+                        </copy>
+                    </assign>
+
+                    <invoke name="InsertNewEscrowAnalysis"
+                            partnerLink="EscrowAnalysisDBAdapter"
+                            portType="escrowanalysisdb:EscrowAnalysisDB_ptt"
+                            operation="insertEscrowAnalysis"
+                            inputVariable="escrowAnalysisInsertRequest"/>
+
+                    <!-- Prepare Update Response -->
+                    <assign name="PrepareUpdateResponse">
+                        <copy>
+                            <from>'SUCCESS'</from>
+                            <to>$updateOutputVariable.payload/types:status</to>
+                        </copy>
+                        <copy>
+                            <from>ora:getCurrentDateTime()</from>
+                            <to>$updateOutputVariable.payload/types:updatedAt</to>
+                        </copy>
+                    </assign>
+
+                    <reply name="ReplyUpdate"
+                           partnerLink="EscrowDBClient"
+                           portType="client:EscrowDBProcess"
+                           operation="updateEscrowAnalysis"
+                           variable="updateOutputVariable"/>
+
+                </sequence>
+            </onMessage>
+
+        </pick>
+
+    </sequence>
+
+</process>

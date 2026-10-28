@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<process name="PaymentQueueOrchestratorBpel"
+         targetNamespace="http://xmlns.oracle.com/pcbpel/adapter/jms/PaymentQueueOrchestratorBpel"
+         xmlns="http://docs.oasis-open.org/wsbpel/2.0/process/executable"
+         xmlns:client="http://xmlns.oracle.com/pcbpel/adapter/jms/PaymentQueueOrchestratorBpel"
+         xmlns:ns1="http://xmlns.oracle.com/pcbpel/adapter/jms/ConsumePaymentRequest"
+         xmlns:ns2="http://xmlns.oracle.com/pcbpel/adapter/jms/ProduceVerificationCheck"
+         xmlns:ns3="http://xmlns.oracle.com/pcbpel/adapter/jms/ConsumeVerificationResponse"
+         xmlns:ns4="http://xmlns.oracle.com/pcbpel/adapter/jms/ProducePaymentResponse"
+         xmlns:types="http://xmlns.oracle.com/pcbpel/adapter/jms/PaymentServicing/types"
+         xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+         xmlns:bpel="http://docs.oasis-open.org/wsbpel/2.0/process/executable">
+
+  <!-- ================================================================= -->
+  <!-- PARTNERLINKS                                                      -->
+  <!-- ================================================================= -->
+  <partnerLinks>
+    <partnerLink name="ConsumePaymentRequest" partnerLinkType="ns1:Consume_Message_plt" myRole="Consume_Message_role"/>
+    <partnerLink name="ProduceVerificationCheck" partnerLinkType="ns2:Produce_Message_plt" partnerRole="Produce_Message_role"/>
+    <partnerLink name="ConsumeVerificationResponse" partnerLinkType="ns3:Consume_Message_plt" myRole="Consume_Message_role"/>
+    <partnerLink name="ProducePaymentResponse" partnerLinkType="ns4:Produce_Message_plt" partnerRole="Produce_Message_role"/>
+  </partnerLinks>
+
+  <!-- ================================================================= -->
+  <!-- VARIABLES                                                         -->
+  <!-- ================================================================= -->
+  <variables>
+    <variable name="PaymentRequestVar" messageType="ns1:Consume_Message_msg"/>
+    <variable name="VerificationRequestVar" messageType="ns2:Produce_Message_msg"/>
+    <variable name="VerificationResponseVar" messageType="ns3:Consume_Message_msg"/>
+    <variable name="PaymentResponseVar" messageType="ns4:Produce_Message_msg"/>
+  </variables>
+
+  <!-- ================================================================= -->
+  <!-- PROPERTIES & ALIASES FOR CORRELATION                              -->
+  <!-- ================================================================= -->
+  <properties>
+    <property name="transactionId" type="xsd:string"/>
+  </properties>
+
+  <propertyAlias propertyName="client:transactionId"
+                 messageType="ns1:Consume_Message_msg" part="body"
+                 query="/types:PaymentRequest/types:transactionId"/>
+
+  <propertyAlias propertyName="client:transactionId"
+                 messageType="ns3:Consume_Message_msg" part="body"
+                 query="/types:VerificationResponse/types:transactionId"/>
+
+  <!-- ================================================================= -->
+  <!-- CORRELATION SETS                                                  -->
+  <!-- ================================================================= -->
+  <correlationSets>
+    <correlationSet name="TransactionCorrelation" properties="client:transactionId"/>
+  </correlationSets>
+
+  <!-- ================================================================= -->
+  <!-- ORCHESTRATION LOGIC                                               -->
+  <!-- ================================================================= -->
+  <sequence name="main">
+
+    <!-- 1. Receive mortgage payment request message (Initiates correlation set) -->
+    <receive name="ReceivePaymentRequest" partnerLink="ConsumePaymentRequest"
+             portType="ns1:Consume_Message_ptt" operation="Consume_Message"
+             variable="PaymentRequestVar" createInstance="yes">
+      <correlations>
+        <correlation set="TransactionCorrelation" initiate="yes"/>
+      </correlations>
+    </receive>
+
+    <!-- 2. Assign values from PaymentRequest to VerificationRequest -->
+    <assign name="AssignVerificationRequest">
+      <copy>
+        <from>$PaymentRequestVar.body/types:transactionId</from>
+        <to>$VerificationRequestVar.body/types:transactionId</to>
+      </copy>
+      <copy>
+        <from>$PaymentRequestVar.body/types:accountNumber</from>
+        <to>$VerificationRequestVar.body/types:accountNumber</to>
+      </copy>
+      <copy>
+        <from>$PaymentRequestVar.body/types:accountBalance</from>
+        <to>$VerificationRequestVar.body/types:accountBalance</to>
+      </copy>
+    </assign>
+
+    <!-- 3. Invoke Payment Verification Microservice asynchronously -->
+    <invoke name="InvokeVerificationCheck" partnerLink="ProduceVerificationCheck"
+            portType="ns2:Produce_Message_ptt" operation="Produce_Message"
+            inputVariable="VerificationRequestVar"/>
+
+    <!-- 4. Wait for Verification Response matching Correlation Set -->
+    <receive name="ReceiveVerificationResponse" partnerLink="ConsumeVerificationResponse"
+             portType="ns3:Consume_Message_ptt" operation="Consume_Message"
+             variable="VerificationResponseVar">
+      <correlations>
+        <correlation set="TransactionCorrelation" initiate="no"/>
+      </correlations>
+    </receive>
+
+    <!-- 5. Evaluate results and prepare final reply -->
+    <assign name="AssignPaymentResponse">
+      <copy>
+        <from>$PaymentRequestVar.body/types:transactionId</from>
+        <to>$PaymentResponseVar.body/types:transactionId</to>
+      </copy>
+      <copy>
+        <from>$PaymentRequestVar.body/types:borrowerName</from>
+        <to>$PaymentResponseVar.body/types:borrowerName</to>
+      </copy>
+      <copy>
+        <from>
+          <literal>POSTED</literal>
+        </from>
+        <to>$PaymentResponseVar.body/types:status</to>
+      </copy>
+      <copy>
+        <from>0.045</from>
+        <to>$PaymentResponseVar.body/types:lateFeeRate</to>
+      </copy>
+      <copy>
+        <from>$PaymentRequestVar.body/types:paymentAmount</from>
+        <to>$PaymentResponseVar.body/types:approvedAmount</to>
+      </copy>
+      <copy>
+        <from>concat('Mock payment verification passed. Score: ', string($VerificationResponseVar.body/types:verificationScore))</from>
+        <to>$PaymentResponseVar.body/types:remarks</to>
+      </copy>
+    </assign>
+
+    <!-- 6. Publish final payment response back to client -->
+    <invoke name="ReplyToClient" partnerLink="ProducePaymentResponse"
+            portType="ns4:Produce_Message_ptt" operation="Produce_Message"
+            inputVariable="PaymentResponseVar"/>
+
+  </sequence>
+</process>
