@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:definitions name="HelocCreditProcess"
+                  targetNamespace="http://xmlns.oracle.com/HelocOrchestration/HelocCreditProcess"
+                  xmlns:tns="http://xmlns.oracle.com/HelocOrchestration/HelocCreditProcess"
+                  xmlns:types="http://xmlns.oracle.com/HelocOrchestration/types"
+                  xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+                  xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/">
+
+  <wsdl:types>
+    <xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+      <xsd:import namespace="http://xmlns.oracle.com/HelocOrchestration/types" schemaLocation="../heloc-service-soa/HelocWorkflow.xsd" />
+    </xsd:schema>
+  </wsdl:types>
+
+  <wsdl:message name="HelocCreditCheckRequestMessage">
+    <wsdl:part name="payload" element="types:HelocCreditScoreRequest"/>
+  </wsdl:message>
+  <wsdl:message name="HelocCreditCheckResponseMessage">
+    <wsdl:part name="payload" element="types:HelocCreditScoreResponse"/>
+  </wsdl:message>
+
+  <wsdl:portType name="HelocCreditProcess">
+    <wsdl:operation name="processHelocCreditCheck">
+      <wsdl:input message="tns:HelocCreditCheckRequestMessage"/>
+      <wsdl:output message="tns:HelocCreditCheckResponseMessage"/>
+    </wsdl:operation>
+  </wsdl:portType>
+
+  <wsdl:binding name="HelocCreditProcessBinding" type="tns:HelocCreditProcess">
+    <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+    <wsdl:operation name="processHelocCreditCheck">
+      <soap:operation soapAction="processHelocCreditCheck"/>
+      <wsdl:input>
+        <soap:body use="literal"/>
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal"/>
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+
+  <wsdl:service name="heloccreditprocess_client_ep">
+    <wsdl:port name="HelocCreditProcess_pt" binding="tns:HelocCreditProcessBinding">
+      <soap:address location="http://localhost:10082/soap/HelocCreditProcess"/>
+    </wsdl:port>
+  </wsdl:service>
+
+</wsdl:definitions>

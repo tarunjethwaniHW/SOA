@@ -1,0 +1,344 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<process name="HelocApprovalProcess"
+         targetNamespace="http://xmlns.oracle.com/HelocOrchestration/HelocApprovalProcess"
+         xmlns="http://docs.oasis-open.org/wsbpel/2.0/process/executable"
+         xmlns:client="http://xmlns.oracle.com/HelocOrchestration/HelocApprovalProcess"
+         xmlns:types="http://xmlns.oracle.com/HelocOrchestration/types"
+         xmlns:credit="http://xmlns.oracle.com/HelocOrchestration/HelocCreditProcess"
+         xmlns:val="http://xmlns.oracle.com/HelocOrchestration/EquityAppraisalProcess"
+         xmlns:under="http://xmlns.oracle.com/HelocOrchestration/HelocUnderwritingProcess"
+         xmlns:disb="http://xmlns.oracle.com/HelocOrchestration/DrawDisbursementProcess"
+         xmlns:notif="http://xmlns.oracle.com/HelocOrchestration/HelocNotificationProcess"
+         xmlns:bpelx="http://schemas.oracle.com/bpel/extension"
+         xmlns:bpel="http://docs.oasis-open.org/wsbpel/2.0/process/executable"
+         xmlns:ns1="http://xmlns.oracle.com/HelocOrchestration/types">
+
+  <!-- Import Partner WSDLs -->
+  <import namespace="http://xmlns.oracle.com/HelocOrchestration/HelocApprovalProcess" location="HelocApprovalProcess.wsdl" importType="wsdl"/>
+  <import namespace="http://xmlns.oracle.com/HelocOrchestration/HelocCreditProcess" location="../soa-heloccredit-composite/HelocCreditProcess.wsdl" importType="wsdl"/>
+  <import namespace="http://xmlns.oracle.com/HelocOrchestration/EquityAppraisalProcess" location="../soa-equityappraisal-composite/EquityAppraisalProcess.wsdl" importType="wsdl"/>
+  <import namespace="http://xmlns.oracle.com/HelocOrchestration/HelocUnderwritingProcess" location="../soa-helocunderwriting-composite/HelocUnderwritingProcess.wsdl" importType="wsdl"/>
+  <import namespace="http://xmlns.oracle.com/HelocOrchestration/DrawDisbursementProcess" location="../soa-drawdisbursement-composite/DrawDisbursementProcess.wsdl" importType="wsdl"/>
+  <import namespace="http://xmlns.oracle.com/HelocOrchestration/HelocNotificationProcess" location="../soa-helocnotification-composite/HelocNotificationProcess.wsdl" importType="wsdl"/>
+
+  <!-- Partner Links -->
+  <partnerLinks>
+    <partnerLink name="helocapproval_client" partnerLinkType="client:HelocApprovalProcess" myRole="HelocApprovalProcessProvider"/>
+    <partnerLink name="HelocCreditProcessRef" partnerRole="HelocCreditProcessProvider"/>
+    <partnerLink name="EquityAppraisalProcessRef" partnerRole="EquityAppraisalServiceProvider"/>
+    <partnerLink name="HelocUnderwritingProcessRef" partnerRole="HelocUnderwritingServiceProvider"/>
+    <partnerLink name="DrawDisbursementProcessRef" partnerRole="DrawDisbursementServiceProvider"/>
+    <partnerLink name="HelocNotificationProcessRef" partnerRole="HelocNotificationServiceProvider"/>
+  </partnerLinks>
+
+  <!-- Variables -->
+  <variables>
+    <!-- Entry / Exit Payloads -->
+    <variable name="inputVar" messageType="client:HelocApprovalRequestMessage"/>
+    <variable name="outputVar" messageType="client:HelocApprovalResponseMessage"/>
+    <variable name="sanctionFaultVar" messageType="client:SanctionListFaultMessage"/>
+    
+    <!-- Downstream BPEL request/responses -->
+    <variable name="helocCreditRequest" messageType="credit:HelocCreditCheckRequestMessage"/>
+    <variable name="helocCreditResponse" messageType="credit:HelocCreditCheckResponseMessage"/>
+    
+    <variable name="equityAppraisalRequest" messageType="val:EquityAppraisalRequestMessage"/>
+    <variable name="equityAppraisalResponse" messageType="val:EquityAppraisalResponseMessage"/>
+    <variable name="appraisalFeeRefundRequest" messageType="val:AppraisalFeeRefundRequestMessage"/>
+    <variable name="appraisalFeeRefundResponse" messageType="val:AppraisalFeeRefundResponseMessage"/>
+    
+    <variable name="helocUnderwritingRequest" messageType="under:HelocUnderwritingRequestMessage"/>
+    <variable name="helocUnderwritingResponse" messageType="under:HelocUnderwritingResponseMessage"/>
+    
+    <variable name="drawDisbursementRequest" messageType="disb:DrawDisbursementRequestMessage"/>
+    <variable name="drawDisbursementResponse" messageType="disb:DrawDisbursementResponseMessage"/>
+    
+    <variable name="helocNotificationRequest" messageType="notif:HelocNotificationRequestMessage"/>
+    <variable name="helocNotificationResponse" messageType="notif:HelocNotificationResponseMessage"/>
+  </variables>
+
+  <!-- Global Fault Handlers -->
+  <faultHandlers>
+    
+    <!-- Identity Watchlist Match (Trigger saga compensation for appraisal refunds) -->
+    <catch faultName="ns1:FraudAlertFault">
+      <sequence name="FraudCompensationSequence">
+        
+        <!-- Run compensation handler on EquityAppraisalScope -->
+        <compensate target="EquityAppraisalScope"/>
+        
+        <assign name="AssignFraudRejection">
+          <copy>
+            <from>number(0)</from>
+            <to>$outputVar.payload/ns1:helocId</to>
+          </copy>
+          <copy>
+            <from>'REJECTED'</from>
+            <to>$outputVar.payload/ns1:status</to>
+          </copy>
+          <copy>
+            <from>'REJECTED'</from>
+            <to>$outputVar.payload/ns1:decision</to>
+          </copy>
+          <copy>
+            <from>'Saga compensated: Fraud watchlist match triggered equity appraisal fee refund.'</from>
+            <to>$outputVar.payload/ns1:decisionRemarks</to>
+          </copy>
+        </assign>
+        <reply name="ReplyFraudRejection" partnerLink="helocapproval_client" portType="client:HelocApprovalProcess" operation="initiateHeloc" variable="outputVar"/>
+      </sequence>
+    </catch>
+
+    <!-- Catch HELOC credit check service down error -->
+    <catch faultName="ns1:HelocCreditServiceDownFault">
+      <sequence name="HelocCreditDownSequence">
+        <assign name="AssignHelocCreditDownRejection">
+          <copy>
+            <from>number(0)</from>
+            <to>$outputVar.payload/ns1:helocId</to>
+          </copy>
+          <copy>
+            <from>'REJECTED'</from>
+            <to>$outputVar.payload/ns1:status</to>
+          </copy>
+          <copy>
+            <from>'REJECTED'</from>
+            <to>$outputVar.payload/ns1:decision</to>
+          </copy>
+          <copy>
+            <from>'System fault: HELOC credit check service is offline. Please try again later.'</from>
+            <to>$outputVar.payload/ns1:decisionRemarks</to>
+          </copy>
+        </assign>
+        <reply name="ReplyHelocCreditDownRejection" partnerLink="helocapproval_client" portType="client:HelocApprovalProcess" operation="initiateHeloc" variable="outputVar"/>
+      </sequence>
+    </catch>
+
+  </faultHandlers>
+
+  <!-- Complete Orchestration Workflow -->
+  <sequence name="main">
+    
+    <!-- 1. Receive client request -->
+    <receive name="ReceiveRequest" partnerLink="helocapproval_client" portType="client:HelocApprovalProcess" operation="initiateHeloc" variable="inputVar" createInstance="yes"/>
+
+    <!-- Sanction Watchlist Exit (Immediate check) -->
+    <if name="CheckSanctionList">
+      <condition>contains(lower-case($inputVar.payload/ns1:homeownerName), 'voldemort') or ($inputVar.payload/ns1:taxpayerId = '000-00-6666')</condition>
+      <sequence name="SanctionFaultSequence">
+        <assign name="AssignSanctionFault">
+          <copy>
+            <from>'OFAC-403'</from>
+            <to>$sanctionFaultVar.fault/ns1:errorCode</to>
+          </copy>
+          <copy>
+            <from>'Security Exit: Homeowner matches Office of Foreign Assets Control sanction list.'</from>
+            <to>$sanctionFaultVar.fault/ns1:errorMessage</to>
+          </copy>
+          <copy>
+            <from>xp20:current-dateTime()</from>
+            <to>$sanctionFaultVar.fault/ns1:timestamp</to>
+          </copy>
+        </assign>
+        <reply name="ReplySanctionFault" partnerLink="helocapproval_client" portType="client:HelocApprovalProcess" operation="initiateHeloc" variable="sanctionFaultVar" faultName="client:sanctionFault"/>
+        <exit name="ExitSanctionBlocked"/>
+      </sequence>
+    </if>
+
+    <!-- 2. Invoke Standalone HELOC credit Sub-composite -->
+    <scope name="HelocCreditScope">
+      <sequence name="HelocCreditSeq">
+        <assign name="AssignHelocCredit">
+          <copy>
+            <from>$inputVar.payload/ns1:taxpayerId</from>
+            <to>$helocCreditRequest.payload/ns1:taxpayerId</to>
+          </copy>
+        </assign>
+        <invoke name="InvokeHelocCredit" partnerLink="HelocCreditProcessRef" portType="credit:HelocCreditProcess" operation="processHelocCreditCheck" inputVariable="helocCreditRequest" outputVariable="helocCreditResponse"/>
+      </sequence>
+    </scope>
+
+    <!-- 3. Invoke Standalone Equity appraisal Sub-composite (with registered saga compensation) -->
+    <scope name="EquityAppraisalScope">
+      <compensationHandler>
+        <sequence name="AppraisalFeeRefundSeq">
+          <assign name="AssignAppraisalFeeRefund">
+            <copy>
+              <from>$inputVar.payload/ns1:collateralAddress</from>
+              <to>$appraisalFeeRefundRequest.payload/ns1:collateralAddress</to>
+            </copy>
+          </assign>
+          <invoke name="InvokeEquityAppraisalRefund" partnerLink="EquityAppraisalProcessRef" portType="val:EquityAppraisalProcess" operation="processAppraisalFeeRefund" inputVariable="appraisalFeeRefundRequest" outputVariable="appraisalFeeRefundResponse"/>
+        </sequence>
+      </compensationHandler>
+      
+      <sequence name="EquityAppraisalSeq">
+        <assign name="AssignEquityAppraisal">
+          <copy>
+            <from>$inputVar.payload/ns1:collateralAddress</from>
+            <to>$equityAppraisalRequest.payload/ns1:collateralAddress</to>
+          </copy>
+          <copy>
+            <from>$inputVar.payload/ns1:homeValue</from>
+            <to>$equityAppraisalRequest.payload/ns1:estimatedHomeValue</to>
+          </copy>
+        </assign>
+        <invoke name="InvokeEquityAppraisal" partnerLink="EquityAppraisalProcessRef" portType="val:EquityAppraisalProcess" operation="processEquityAppraisal" inputVariable="equityAppraisalRequest" outputVariable="equityAppraisalResponse"/>
+      </sequence>
+    </scope>
+
+    <!-- Fraud Watchlist Check (Simulating Watchlist fault throwing) -->
+    <if name="WatchlistCheck">
+      <condition>ends-with(translate($inputVar.payload/ns1:taxpayerId, '-', ''), '9999')</condition>
+      <throw name="ThrowFraudAlert" faultName="ns1:FraudAlertFault"/>
+    </if>
+
+    <!-- 4. Invoke Standalone HELOC underwriting Sub-composite -->
+    <assign name="AssignHelocUnderwriting">
+      <copy>
+        <from>$helocCreditResponse.payload/ns1:ficoScore</from>
+        <to>$helocUnderwritingRequest.payload/ns1:ficoScore</to>
+      </copy>
+      <copy>
+        <from>$inputVar.payload/ns1:creditLineAmount</from>
+        <to>$helocUnderwritingRequest.payload/ns1:creditLineAmount</to>
+      </copy>
+      <copy>
+        <from>$inputVar.payload/ns1:householdIncome</from>
+        <to>$helocUnderwritingRequest.payload/ns1:householdIncome</to>
+      </copy>
+      <copy>
+        <from>$equityAppraisalResponse.payload/ns1:appraisedHomeValue</from>
+        <to>$helocUnderwritingRequest.payload/ns1:homeValue</to>
+      </copy>
+    </assign>
+    
+    <invoke name="InvokeHelocUnderwriting" partnerLink="HelocUnderwritingProcessRef" portType="under:HelocUnderwritingProcess" operation="processHelocUnderwriting" inputVariable="helocUnderwritingRequest" outputVariable="helocUnderwritingResponse"/>
+
+    <!-- 5. Decision Routing -->
+    <if name="RouteDecision">
+      <!-- Auto Approved -->
+      <condition>$helocUnderwritingResponse.payload/ns1:decision = 'AUTO_APPROVED'</condition>
+      <sequence name="ApprovedSequence">
+        
+        <!-- Call standalone Draw disbursement composite -->
+        <assign name="AssignDrawDisbursement">
+          <copy>
+            <from>number(1003)</from>
+            <to>$drawDisbursementRequest.payload/ns1:helocId</to>
+          </copy>
+          <copy>
+            <from>$inputVar.payload/ns1:creditLineAmount</from>
+            <to>$drawDisbursementRequest.payload/ns1:creditLineAmount</to>
+          </copy>
+        </assign>
+        <invoke name="InvokeDrawDisbursement" partnerLink="DrawDisbursementProcessRef" portType="disb:DrawDisbursementProcess" operation="processDrawDisbursement" inputVariable="drawDisbursementRequest" outputVariable="drawDisbursementResponse"/>
+
+        <!-- Call standalone HELOC notification composite -->
+        <assign name="AssignHelocNotification">
+          <copy>
+            <from>number(1003)</from>
+            <to>$helocNotificationRequest.payload/ns1:helocId</to>
+          </copy>
+          <copy>
+            <from>$inputVar.payload/ns1:homeownerName</from>
+            <to>$helocNotificationRequest.payload/ns1:homeownerName</to>
+          </copy>
+          <copy>
+            <from>'APPROVED'</from>
+            <to>$helocNotificationRequest.payload/ns1:decision</to>
+          </copy>
+        </assign>
+        <invoke name="InvokeHelocNotification" partnerLink="HelocNotificationProcessRef" portType="notif:HelocNotificationProcess" operation="processHelocNotification" inputVariable="helocNotificationRequest" outputVariable="helocNotificationResponse"/>
+
+        <assign name="AssignApprovedResponse">
+          <copy>
+            <from>number(1003)</from>
+            <to>$outputVar.payload/ns1:helocId</to>
+          </copy>
+          <copy>
+            <from>'DISBURSED'</from>
+            <to>$outputVar.payload/ns1:status</to>
+          </copy>
+          <copy>
+            <from>'APPROVED'</from>
+            <to>$outputVar.payload/ns1:decision</to>
+          </copy>
+          <copy>
+            <from>$helocUnderwritingResponse.payload/ns1:underwritingNotes</from>
+            <to>$outputVar.payload/ns1:decisionRemarks</to>
+          </copy>
+        </assign>
+      </sequence>
+
+      <!-- Auto Rejected -->
+      <bpel:elseif>
+        <bpel:condition>$helocUnderwritingResponse.payload/ns1:decision = 'AUTO_REJECTED'</bpel:condition>
+        <sequence name="RejectedSequence">
+          <assign name="AssignHelocNotificationReject">
+            <copy>
+              <from>number(1003)</from>
+              <to>$helocNotificationRequest.payload/ns1:helocId</to>
+            </copy>
+            <copy>
+              <from>$inputVar.payload/ns1:homeownerName</from>
+              <to>$helocNotificationRequest.payload/ns1:homeownerName</to>
+            </copy>
+            <copy>
+              <from>'REJECTED'</from>
+              <to>$helocNotificationRequest.payload/ns1:decision</to>
+            </copy>
+          </assign>
+          <invoke name="InvokeHelocNotificationReject" partnerLink="HelocNotificationProcessRef" portType="notif:HelocNotificationProcess" operation="processHelocNotification" inputVariable="helocNotificationRequest" outputVariable="helocNotificationResponse"/>
+
+          <assign name="AssignRejectedResponse">
+            <copy>
+              <from>number(1003)</from>
+              <to>$outputVar.payload/ns1:helocId</to>
+            </copy>
+            <copy>
+              <from>'REJECTED'</from>
+              <to>$outputVar.payload/ns1:status</to>
+            </copy>
+            <copy>
+              <from>'REJECTED'</from>
+              <to>$outputVar.payload/ns1:decision</to>
+            </copy>
+            <copy>
+              <from>$helocUnderwritingResponse.payload/ns1:underwritingNotes</from>
+              <to>$outputVar.payload/ns1:decisionRemarks</to>
+            </copy>
+          </assign>
+        </sequence>
+      </bpel:elseif>
+
+      <!-- Manual HELOC underwriting Review (Human Workflow queue) -->
+      <bpel:else>
+        <sequence name="ManualReviewHumanTask">
+          <assign name="AssignManualResponse">
+            <copy>
+              <from>number(1003)</from>
+              <to>$outputVar.payload/ns1:helocId</to>
+            </copy>
+            <copy>
+              <from>'PENDING_MANUAL_REVIEW'</from>
+              <to>$outputVar.payload/ns1:status</to>
+            </copy>
+            <copy>
+              <from>'PENDING'</from>
+              <to>$outputVar.payload/ns1:decision</to>
+            </copy>
+            <copy>
+              <from>$helocUnderwritingResponse.payload/ns1:underwritingNotes</from>
+              <to>$outputVar.payload/ns1:decisionRemarks</to>
+            </copy>
+          </assign>
+        </sequence>
+      </bpel:else>
+    </if>
+
+    <!-- 6. Reply response back to client -->
+    <reply name="ReplyClient" partnerLink="helocapproval_client" portType="client:HelocApprovalProcess" operation="initiateHeloc" variable="outputVar"/>
+
+  </sequence>
+</process>

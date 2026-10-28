@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:definitions name="EquityAppraisalProcess"
+                  targetNamespace="http://xmlns.oracle.com/HelocOrchestration/EquityAppraisalProcess"
+                  xmlns:tns="http://xmlns.oracle.com/HelocOrchestration/EquityAppraisalProcess"
+                  xmlns:types="http://xmlns.oracle.com/HelocOrchestration/types"
+                  xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+                  xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/">
+
+  <wsdl:types>
+    <xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+      <xsd:import namespace="http://xmlns.oracle.com/HelocOrchestration/types" schemaLocation="../heloc-service-soa/HelocWorkflow.xsd" />
+    </xsd:schema>
+  </wsdl:types>
+
+  <wsdl:message name="EquityAppraisalRequestMessage">
+    <wsdl:part name="payload" element="types:EquityAppraisalRequest"/>
+  </wsdl:message>
+  <wsdl:message name="EquityAppraisalResponseMessage">
+    <wsdl:part name="payload" element="types:EquityAppraisalResponse"/>
+  </wsdl:message>
+  <wsdl:message name="AppraisalFeeRefundRequestMessage">
+    <wsdl:part name="payload" element="types:AppraisalFeeRefundRequest"/>
+  </wsdl:message>
+  <wsdl:message name="AppraisalFeeRefundResponseMessage">
+    <wsdl:part name="payload" element="types:AppraisalFeeRefundResponse"/>
+  </wsdl:message>
+
+  <wsdl:portType name="EquityAppraisalProcess">
+    <wsdl:operation name="processEquityAppraisal">
+      <wsdl:input message="tns:EquityAppraisalRequestMessage"/>
+      <wsdl:output message="tns:EquityAppraisalResponseMessage"/>
+    </wsdl:operation>
+    <wsdl:operation name="processAppraisalFeeRefund">
+      <wsdl:input message="tns:AppraisalFeeRefundRequestMessage"/>
+      <wsdl:output message="tns:AppraisalFeeRefundResponseMessage"/>
+    </wsdl:operation>
+  </wsdl:portType>
+
+  <wsdl:binding name="EquityAppraisalProcessBinding" type="tns:EquityAppraisalProcess">
+    <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+    <wsdl:operation name="processEquityAppraisal">
+      <soap:operation soapAction="processEquityAppraisal"/>
+      <wsdl:input>
+        <soap:body use="literal"/>
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal"/>
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="processAppraisalFeeRefund">
+      <soap:operation soapAction="processAppraisalFeeRefund"/>
+      <wsdl:input>
+        <soap:body use="literal"/>
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal"/>
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+
+  <wsdl:service name="equityappraisalprocess_client_ep">
+    <wsdl:port name="EquityAppraisalProcess_pt" binding="tns:EquityAppraisalProcessBinding">
+      <soap:address location="http://localhost:10083/soap/EquityAppraisalProcess"/>
+    </wsdl:port>
+  </wsdl:service>
+
+</wsdl:definitions>

@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<xs:schema targetNamespace="http://xmlns.oracle.com/HelocOrchestration/types"
+           xmlns:tns="http://xmlns.oracle.com/HelocOrchestration/types"
+           xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           elementFormDefault="qualified">
+
+  <!-- Core HELOC Elements -->
+  <xs:element name="HelocApplicationRequest">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="homeownerName" type="xs:string"/>
+        <xs:element name="taxpayerId" type="xs:string"/>
+        <xs:element name="creditLineAmount" type="xs:double"/>
+        <xs:element name="householdIncome" type="xs:double"/>
+        <xs:element name="collateralAddress" type="xs:string"/>
+        <xs:element name="homeValue" type="xs:double"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="HelocApplicationResponse">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="helocId" type="xs:long"/>
+        <xs:element name="status" type="xs:string"/>
+        <xs:element name="decision" type="xs:string"/>
+        <xs:element name="decisionRemarks" type="xs:string"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- HELOC credit Service Elements -->
+  <xs:element name="HelocCreditScoreRequest">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="taxpayerId" type="xs:string"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="HelocCreditScoreResponse">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="ficoScore" type="xs:int"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Property Equity appraisal Elements -->
+  <xs:element name="EquityAppraisalRequest">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="collateralAddress" type="xs:string"/>
+        <xs:element name="estimatedHomeValue" type="xs:double"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="EquityAppraisalResponse">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="appraisedHomeValue" type="xs:double"/>
+        <xs:element name="status" type="xs:string"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="AppraisalFeeRefundRequest">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="collateralAddress" type="xs:string"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="AppraisalFeeRefundResponse">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="status" type="xs:string"/>
+        <xs:element name="message" type="xs:string"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- HELOC underwriting Elements -->
+  <xs:element name="HelocUnderwritingRequest">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="ficoScore" type="xs:int"/>
+        <xs:element name="creditLineAmount" type="xs:double"/>
+        <xs:element name="householdIncome" type="xs:double"/>
+        <xs:element name="homeValue" type="xs:double"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="HelocUnderwritingResponse">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="decision" type="xs:string"/>
+        <xs:element name="underwritingNotes" type="xs:string"/>
+        <xs:element name="debtToIncomeRatio" type="xs:double"/>
+        <xs:element name="combinedLtv" type="xs:double"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Draw disbursement Elements -->
+  <xs:element name="DrawDisbursementRequest">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="helocId" type="xs:long"/>
+        <xs:element name="creditLineAmount" type="xs:double"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="DrawDisbursementResponse">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="status" type="xs:string"/>
+        <xs:element name="message" type="xs:string"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- HELOC notification Elements -->
+  <xs:element name="HelocNotificationRequest">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="helocId" type="xs:long"/>
+        <xs:element name="homeownerName" type="xs:string"/>
+        <xs:element name="decision" type="xs:string"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="HelocNotificationResponse">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="status" type="xs:string"/>
+        <xs:element name="message" type="xs:string"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Fault Specification -->
+  <xs:element name="HelocFaultDetail">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="errorCode" type="xs:string"/>
+        <xs:element name="errorMessage" type="xs:string"/>
+        <xs:element name="timestamp" type="xs:dateTime"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>

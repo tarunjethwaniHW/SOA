@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:definitions name="DrawDisbursementProcess"
+                  targetNamespace="http://xmlns.oracle.com/HelocOrchestration/DrawDisbursementProcess"
+                  xmlns:tns="http://xmlns.oracle.com/HelocOrchestration/DrawDisbursementProcess"
+                  xmlns:types="http://xmlns.oracle.com/HelocOrchestration/types"
+                  xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+                  xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/">
+
+  <wsdl:types>
+    <xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+      <xsd:import namespace="http://xmlns.oracle.com/HelocOrchestration/types" schemaLocation="../heloc-service-soa/HelocWorkflow.xsd" />
+    </xsd:schema>
+  </wsdl:types>
+
+  <wsdl:message name="DrawDisbursementRequestMessage">
+    <wsdl:part name="payload" element="types:DrawDisbursementRequest"/>
+  </wsdl:message>
+  <wsdl:message name="DrawDisbursementResponseMessage">
+    <wsdl:part name="payload" element="types:DrawDisbursementResponse"/>
+  </wsdl:message>
+
+  <wsdl:portType name="DrawDisbursementProcess">
+    <wsdl:operation name="processDrawDisbursement">
+      <wsdl:input message="tns:DrawDisbursementRequestMessage"/>
+      <wsdl:output message="tns:DrawDisbursementResponseMessage"/>
+    </wsdl:operation>
+  </wsdl:portType>
+
+  <wsdl:binding name="DrawDisbursementProcessBinding" type="tns:DrawDisbursementProcess">
+    <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+    <wsdl:operation name="processDrawDisbursement">
+      <soap:operation soapAction="processDrawDisbursement"/>
+      <wsdl:input>
+        <soap:body use="literal"/>
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal"/>
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+
+  <wsdl:service name="drawdisbursementprocess_client_ep">
+    <wsdl:port name="DrawDisbursementProcess_pt" binding="tns:DrawDisbursementProcessBinding">
+      <soap:address location="http://localhost:10085/soap/DrawDisbursementProcess"/>
+    </wsdl:port>
+  </wsdl:service>
+
+</wsdl:definitions>

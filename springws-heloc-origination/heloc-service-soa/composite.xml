@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<composite name="HelocServiceSOAEngine"
+           revision="1.0"
+           label="HelocOrchestrationMasterEngine"
+           mode="active"
+           state="on"
+           xmlns="http://xmlns.oracle.com/sca/1.0"
+           xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:ui="http://xmlns.oracle.com/soa/designer/">
+
+  <!-- Imports pointing to standalone sub-composites -->
+  <import namespace="http://xmlns.oracle.com/HelocOrchestration/HelocApprovalProcess"
+          location="HelocApprovalProcess.wsdl" importType="wsdl"/>
+  <import namespace="http://xmlns.oracle.com/HelocOrchestration/HelocCreditProcess"
+          location="../soa-heloccredit-composite/HelocCreditProcess.wsdl" importType="wsdl"/>
+  <import namespace="http://xmlns.oracle.com/HelocOrchestration/EquityAppraisalProcess"
+          location="../soa-equityappraisal-composite/EquityAppraisalProcess.wsdl" importType="wsdl"/>
+  <import namespace="http://xmlns.oracle.com/HelocOrchestration/HelocUnderwritingProcess"
+          location="../soa-helocunderwriting-composite/HelocUnderwritingProcess.wsdl" importType="wsdl"/>
+  <import namespace="http://xmlns.oracle.com/HelocOrchestration/DrawDisbursementProcess"
+          location="../soa-drawdisbursement-composite/DrawDisbursementProcess.wsdl" importType="wsdl"/>
+  <import namespace="http://xmlns.oracle.com/HelocOrchestration/HelocNotificationProcess"
+          location="../soa-helocnotification-composite/HelocNotificationProcess.wsdl" importType="wsdl"/>
+
+  <!-- Client-facing Entry Point Proxy -->
+  <service name="helocapproval_client_ep" ui:wsdlLocation="HelocApprovalProcess.wsdl">
+    <interface.wsdl interface="http://xmlns.oracle.com/HelocOrchestration/HelocApprovalProcess#wsdl.interface(HelocApprovalProcess)"/>
+    <binding.ws port="http://xmlns.oracle.com/HelocOrchestration/HelocApprovalProcess#wsdl.endpoint(helocapproval_client_ep/HelocApprovalProcess_pt)">
+      <property name="weblogic.wsee.wsat.transaction.flowOption" type="xs:string" many="false">NEVER</property>
+    </binding.ws>
+  </service>
+
+  <property name="productVersion" type="xs:string" many="false">12.2.1.4.0</property>
+
+  <!-- BPEL Orchestrator Component -->
+  <component name="HelocApprovalProcess" version="2.0">
+    <implementation.bpel src="HelocApprovalProcess.bpel"/>
+    <componentType>
+      <service name="helocapproval_client" ui:wsdlLocation="HelocApprovalProcess.wsdl">
+        <interface.wsdl interface="http://xmlns.oracle.com/HelocOrchestration/HelocApprovalProcess#wsdl.interface(HelocApprovalProcess)"/>
+      </service>
+      <reference name="HelocCreditProcessRef" ui:wsdlLocation="../soa-heloccredit-composite/HelocCreditProcess.wsdl">
+        <interface.wsdl interface="http://xmlns.oracle.com/HelocOrchestration/HelocCreditProcess#wsdl.interface(HelocCreditProcess)"/>
+      </reference>
+      <reference name="EquityAppraisalProcessRef" ui:wsdlLocation="../soa-equityappraisal-composite/EquityAppraisalProcess.wsdl">
+        <interface.wsdl interface="http://xmlns.oracle.com/HelocOrchestration/EquityAppraisalProcess#wsdl.interface(EquityAppraisalProcess)"/>
+      </reference>
+      <reference name="HelocUnderwritingProcessRef" ui:wsdlLocation="../soa-helocunderwriting-composite/HelocUnderwritingProcess.wsdl">
+        <interface.wsdl interface="http://xmlns.oracle.com/HelocOrchestration/HelocUnderwritingProcess#wsdl.interface(HelocUnderwritingProcess)"/>
+      </reference>
+      <reference name="DrawDisbursementProcessRef" ui:wsdlLocation="../soa-drawdisbursement-composite/DrawDisbursementProcess.wsdl">
+        <interface.wsdl interface="http://xmlns.oracle.com/HelocOrchestration/DrawDisbursementProcess#wsdl.interface(DrawDisbursementProcess)"/>
+      </reference>
+      <reference name="HelocNotificationProcessRef" ui:wsdlLocation="../soa-helocnotification-composite/HelocNotificationProcess.wsdl">
+        <interface.wsdl interface="http://xmlns.oracle.com/HelocOrchestration/HelocNotificationProcess#wsdl.interface(HelocNotificationProcess)"/>
+      </reference>
+    </componentType>
+    <property name="bpel.config.transaction" type="xs:string" many="false">required</property>
+  </component>
+
+  <!-- References pointing to the external deployment endpoints of the sub-composites -->
+  <reference name="HelocCreditProcessRef" ui:wsdlLocation="../soa-heloccredit-composite/HelocCreditProcess.wsdl">
+    <interface.wsdl interface="http://xmlns.oracle.com/HelocOrchestration/HelocCreditProcess#wsdl.interface(HelocCreditProcess)"/>
+    <binding.ws port="http://xmlns.oracle.com/HelocOrchestration/HelocCreditProcess#wsdl.endpoint(heloccreditprocess_client_ep/HelocCreditProcess_pt)"
+                location="http://localhost:10082/soap/HelocCreditProcess?wsdl"
+                soapVersion="1.1"/>
+  </reference>
+
+  <reference name="EquityAppraisalProcessRef" ui:wsdlLocation="../soa-equityappraisal-composite/EquityAppraisalProcess.wsdl">
+    <interface.wsdl interface="http://xmlns.oracle.com/HelocOrchestration/EquityAppraisalProcess#wsdl.interface(EquityAppraisalProcess)"/>
+    <binding.ws port="http://xmlns.oracle.com/HelocOrchestration/EquityAppraisalProcess#wsdl.endpoint(equityappraisalprocess_client_ep/EquityAppraisalProcess_pt)"
+                location="http://localhost:10083/soap/EquityAppraisalProcess?wsdl"
+                soapVersion="1.1"/>
+  </reference>
+
+  <reference name="HelocUnderwritingProcessRef" ui:wsdlLocation="../soa-helocunderwriting-composite/HelocUnderwritingProcess.wsdl">
+    <interface.wsdl interface="http://xmlns.oracle.com/HelocOrchestration/HelocUnderwritingProcess#wsdl.interface(HelocUnderwritingProcess)"/>
+    <binding.ws port="http://xmlns.oracle.com/HelocOrchestration/HelocUnderwritingProcess#wsdl.endpoint(helocunderwritingprocess_client_ep/HelocUnderwritingProcess_pt)"
+                location="http://localhost:10084/soap/HelocUnderwritingProcess?wsdl"
+                soapVersion="1.1"/>
+  </reference>
+
+  <reference name="DrawDisbursementProcessRef" ui:wsdlLocation="../soa-drawdisbursement-composite/DrawDisbursementProcess.wsdl">
+    <interface.wsdl interface="http://xmlns.oracle.com/HelocOrchestration/DrawDisbursementProcess#wsdl.interface(DrawDisbursementProcess)"/>
+    <binding.ws port="http://xmlns.oracle.com/HelocOrchestration/DrawDisbursementProcess#wsdl.endpoint(drawdisbursementprocess_client_ep/DrawDisbursementProcess_pt)"
+                location="http://localhost:10085/soap/DrawDisbursementProcess?wsdl"
+                soapVersion="1.1"/>
+  </reference>
+
+  <reference name="HelocNotificationProcessRef" ui:wsdlLocation="../soa-helocnotification-composite/HelocNotificationProcess.wsdl">
+    <interface.wsdl interface="http://xmlns.oracle.com/HelocOrchestration/HelocNotificationProcess#wsdl.interface(HelocNotificationProcess)"/>
+    <binding.ws port="http://xmlns.oracle.com/HelocOrchestration/HelocNotificationProcess#wsdl.endpoint(helocnotificationprocess_client_ep/HelocNotificationProcess_pt)"
+                location="http://localhost:10086/soap/HelocNotificationProcess?wsdl"
+                soapVersion="1.1"/>
+  </reference>
+
+  <!-- Wires binding main orchestrator to downstream sub-composites -->
+  <wire>
+    <source.uri>helocapproval_client_ep</source.uri>
+    <target.uri>HelocApprovalProcess/helocapproval_client</target.uri>
+  </wire>
+  <wire>
+    <source.uri>HelocApprovalProcess/HelocCreditProcessRef</source.uri>
+    <target.uri>HelocCreditProcessRef</target.uri>
+  </wire>
+  <wire>
+    <source.uri>HelocApprovalProcess/EquityAppraisalProcessRef</source.uri>
+    <target.uri>EquityAppraisalProcessRef</target.uri>
+  </wire>
+  <wire>
+    <source.uri>HelocApprovalProcess/HelocUnderwritingProcessRef</source.uri>
+    <target.uri>HelocUnderwritingProcessRef</target.uri>
+  </wire>
+  <wire>
+    <source.uri>HelocApprovalProcess/DrawDisbursementProcessRef</source.uri>
+    <target.uri>DrawDisbursementProcessRef</target.uri>
+  </wire>
+  <wire>
+    <source.uri>HelocApprovalProcess/HelocNotificationProcessRef</source.uri>
+    <target.uri>HelocNotificationProcessRef</target.uri>
+  </wire>
+
+</composite>
